@@ -3,6 +3,7 @@
 import argparse,base64,hashlib,io,json,math,os,re,subprocess,shutil
 from pathlib import Path
 from PIL import Image,ImageDraw,ImageFont
+from xml.sax.saxutils import escape
 ROOT=Path(__file__).resolve().parents[1]
 FONTS=ROOT/'docs/assets/editor-fonts'
 TYPES={'time','hours','minutes','seconds','date','battery','temperature','distance','alarmCount','alarmStatus','text','image','icon'}
@@ -85,7 +86,7 @@ def rendered_image(asset):
     return im.convert('RGBA')
 
 def generate(d,out):
-    validate(d);out.mkdir(parents=True,exist_ok=True);res=out/'resources';res.mkdir(exist_ok=True);src=out/'source';src.mkdir(exist_ok=True)
+    validate(d);build_id=d.get("buildId") or hashlib.sha256(json.dumps(d,sort_keys=True).encode()).hexdigest()[:8].upper();app_name=str(d.get("name") or "Jorge Custom")[:18]+" E-"+str(build_id)[:8];out.mkdir(parents=True,exist_ok=True);res=out/'resources';res.mkdir(exist_ok=True);src=out/'source';src.mkdir(exist_ok=True)
     resources=[];initial=[];render=[];fontids={};pixel_tables=[];chars='0123456789:.-% °CkmAKTIVUS'
     for i,e in enumerate(d['elements']):
         if not e.get('visible',True):continue
@@ -116,7 +117,7 @@ def generate(d,out):
         else:render.append(f'dc.setColor(0x{e["color"][1:]},Graphics.COLOR_TRANSPARENT); dc.drawText({x},{y},fonts[{json.dumps(name)}],{expr},Graphics.TEXT_JUSTIFY_LEFT);')
     fontxml=[s for s in resources if s.startswith('<font')];bitmaps=[s for s in resources if s.startswith('<bitmap')]
     Image.new('RGB',(65,65),'black').save(res/'launcher.png');bitmaps.append('<bitmap id="LauncherIcon" filename="launcher.png"/>')
-    (res/'resources.xml').write_text('<resources><fonts>'+''.join(fontxml)+'</fonts><bitmaps>'+''.join(bitmaps)+'</bitmaps><strings><string id="AppName">Jorge Custom</string></strings></resources>')
+    (res/'resources.xml').write_text('<resources><fonts>'+''.join(fontxml)+'</fonts><bitmaps>'+''.join(bitmaps)+'</bitmaps><strings><string id="AppName">'+escape(app_name)+'</string></strings></resources>')
     manifest='''<?xml version="1.0"?><iq:manifest xmlns:iq="http://www.garmin.com/xml/connectiq" version="3"><iq:application id="c5fa872a0f294834a22d4d4ad44c0641" type="watchface" name="@Strings.AppName" entry="CustomApp" launcherIcon="@Drawables.LauncherIcon" minApiLevel="4.2.0"><iq:products><iq:product id="venux1"/></iq:products><iq:permissions/><iq:languages><iq:language>deu</iq:language><iq:language>eng</iq:language></iq:languages><iq:barrels/></iq:application></iq:manifest>'''
     (out/'manifest.xml').write_text(manifest);(out/'monkey.jungle').write_text('project.manifest = manifest.xml\nbase.sourcePath = source\nbase.resourcePath = resources\n')
     code='''import Toybox.Application;
