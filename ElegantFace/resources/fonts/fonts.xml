@@ -1,0 +1,8 @@
+<fonts>
+    <font id="Hours" filename="hours.fnt" antialias="true"/>
+    <font id="Seconds" filename="seconds.fnt" antialias="true"/>
+    <font id="Value" filename="value.fnt" antialias="true"/>
+    <font id="Battery" filename="battery.fnt" antialias="true"/>
+    <font id="Date" filename="date.fnt" antialias="true"/>
+    <font id="Label" filename="label.fnt" antialias="true"/>
+</fonts>
