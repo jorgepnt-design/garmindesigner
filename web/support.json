@@ -22,7 +22,8 @@
     "alarmCount": { "chars": "digits-", "sample": "2", "label": "Anzahl Wecker" },
     "alarmStatus": { "chars": "text", "sample": "WECKER", "label": "Wecker-Status" },
     "text": { "chars": "text", "sample": "", "label": "Text" },
-    "icon": { "chars": "", "sample": "", "label": "Icon" }
+    "icon": { "chars": "", "sample": "", "label": "Icon" },
+    "image": { "chars": "", "sample": "", "label": "Bild" }
   },
   "iconAliases": {
     "sun": "sun", "weather": "sun", "temperature": "sun",

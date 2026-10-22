@@ -32,6 +32,7 @@ Alle fertigen Dateien liegen auch unter **Releases → neueste**.
 | `steps`, `heartRate`, `calories`, `floors`, `activeMinutes` | Aktivitätswerte |
 | `notifications`, `alarmCount`, `alarmStatus` | Benachrichtigungen, Wecker |
 | `text` | fester Text |
+| `image` | eingebettetes Bild (`data:image/...;base64`, Größe aus `width`/`height`) |
 | `icon` | Icons (Sonne, Läufer, Wecker, Herz, Glocke, Flamme, Akku, Bluetooth, Schritte, Mond, Wolke, Kalender) und Formen (`line`, `rect`, `circle`, `ring`, `dot`) |
 
 Unbekannte Typen und Icons werden weggelassen; die Webseite zeigt dann einen Hinweis.
@@ -45,7 +46,7 @@ Optional im JSON: `"width"`/`"height"` (Größe der Design-Fläche, Standard 448
 - `designs/` – hochgeladene Designs; jedes wird zu `<name>-venux1.prg`
 - `tools/build_face.py` – erzeugt aus einem Design ein Connect-IQ-Projekt (Schriften, Icons, Monkey C, Vorschau)
 - `tools/template/` – fester Monkey-C-Code (App, Datenquellen)
-- `tools/fonts/` – Cormorant Garamond (Ziffern: lining/tabular) und Inter, beide SIL Open Font License
+- `tools/fonts/` – Cormorant Garamond (Ziffern: lining/tabular), Inter (beide SIL Open Font License) und Roboto Condensed Bold (Apache 2.0)
 - `tools/icons/` – Icon-Masken aus `web/icons.json` (Material Icons, Apache 2.0)
 - `web/` – die Webseite
 - `ElegantFace/`, `design/` – das erste, von Hand abgestimmte Zifferblatt „Elegant“

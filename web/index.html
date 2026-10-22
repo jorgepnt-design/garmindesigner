@@ -120,6 +120,7 @@ const API = `https://api.github.com/repos/${OWNER}/${REPO}`;
 const $ = (id) => document.getElementById(id);
 
 let support = null, icons = null, design = null, rawJson = "";
+const images = new Map();
 
 function getToken() { try { return localStorage.getItem("gd_token") || ""; } catch { return ""; } }
 function setToken(t) { try { localStorage.setItem("gd_token", t); } catch {} }
@@ -150,12 +151,13 @@ function slugify(name) {
 function fontFamily(name) {
   const n = (name || "").toLowerCase();
   if (n.includes("label") || n.includes("sans") || n.includes("mono")) return ["GDInter", 500];
+  if (n.includes("bold")) return ["GDBold", 700];
   if (n.includes("battery") || n.includes("light")) return ["GDSerif500", 500];
   return ["GDSerif600", 600];
 }
 async function loadFonts() {
   const faces = [["GDSerif600", "fonts/CormorantGaramond-600.ttf"], ["GDSerif500", "fonts/CormorantGaramond-500.ttf"],
-                 ["GDInter", "fonts/Inter-Medium.otf"]];
+                 ["GDInter", "fonts/Inter-Medium.otf"], ["GDBold", "fonts/RobotoCondensed-700.ttf"]];
   await Promise.all(faces.map(async ([fam, url]) => {
     try { const f = new FontFace(fam, `url(${url})`); await f.load(); document.fonts.add(f); } catch {}
   }));
@@ -173,6 +175,12 @@ function render() {
     if (!t) { warnings.push(`Element-Typ „${el.type}“ wird noch nicht unterstützt und fehlt.`); continue; }
     const x = Math.round(el.x || 0), y = Math.round(el.y || 0), size = Math.max(1, Math.round(el.size || 20));
     ctx.fillStyle = ctx.strokeStyle = el.color || "#fff";
+    if (el.type === "image") {
+      const img = images.get(el.data || el.src);
+      if (img) ctx.drawImage(img, x, y, Math.max(1, el.width ?? size), Math.max(1, el.height ?? size));
+      else warnings.push("Ein Bild konnte nicht gelesen werden und fehlt.");
+      continue;
+    }
     if (el.type === "icon") {
       const icon = el.icon || "";
       if (support.shapes.includes(icon)) {
@@ -208,6 +216,13 @@ async function openFile(file) {
   $("slug").value = slugify(design.name || file.name.replace(/\.json$/i, ""));
   $("status").textContent = ""; $("status").className = "status";
   updateSlugInfo();
+  images.clear();
+  await Promise.all(design.elements.filter((el) => el.type === "image").map((el) => new Promise((done) => {
+    const src = el.data || el.src, img = new Image();
+    img.onload = () => { images.set(src, img); done(); };
+    img.onerror = done;
+    img.src = src;
+  })));
   render();
 }
 async function updateSlugInfo() {

@@ -4,6 +4,8 @@ Aufruf: python3 tools/build_face.py designs/mein-design.json build/mein-design
 Ergebnis: Projektordner mit manifest.xml, monkey.jungle, Quelltext, Schriften, Icons
 und vorschau.png. Bauen mit: monkeyc -d venux1 -f <ordner>/monkey.jungle ...
 """
+import base64
+import io
 import json
 import re
 import shutil
@@ -18,6 +20,7 @@ FONTS = TOOLS / "fonts"
 SERIF = FONTS / "CormorantGaramond-600.ttf"
 SERIF_LIGHT = FONTS / "CormorantGaramond-500.ttf"
 SANS = FONTS / "Inter-Medium.otf"
+SANS_BOLD = FONTS / "RobotoCondensed-700.ttf"
 
 DIGITS = "0123456789"
 UPPER = "ABCDEFGHIJKLMNOPQRSTUVWXYZÀÁÂÃÄÅÆÇÈÉÊËÌÍÎÏÑÒÓÔÕÖØÙÚÛÜÝ"
@@ -48,6 +51,8 @@ def font_file(name):
     n = (name or "").lower()
     if "label" in n or "sans" in n or "mono" in n:
         return SANS
+    if "bold" in n:
+        return SANS_BOLD
     if "battery" in n or "light" in n:
         return SERIF_LIGHT
     return SERIF
@@ -149,6 +154,16 @@ def colored_icon(name, size, color, background):
     return img
 
 
+def embedded_image(data, width, height, background):
+    """Eingebettetes Bild (data:image/...;base64,...) auf width x height bringen."""
+    raw = base64.b64decode(data.split(",", 1)[1])
+    img = Image.open(io.BytesIO(raw)).convert("RGBA").resize((width, height), Image.LANCZOS)
+    rgb = ((background >> 16) & 255, (background >> 8) & 255, background & 255)
+    flat = Image.new("RGB", (width, height), rgb)
+    flat.paste(img, (0, 0), img)
+    return flat
+
+
 def mc_string(s):
     return '"' + s.replace("\\", "\\\\").replace('"', '\\"') + '"'
 
@@ -172,7 +187,7 @@ def build(design_path, out):
 
     warnings = []
     font_keys, font_chars = [], {}
-    icon_keys, icons = [], {}
+    bitmaps, icons = [], {}
     items = []
 
     for el in design.get("elements", []):
@@ -197,9 +212,19 @@ def build(design_path, out):
                 continue
             key = (alias, size, color)
             if key not in icons:
-                icons[key] = len(icon_keys)
-                icon_keys.append(key)
+                icons[key] = len(bitmaps)
+                bitmaps.append(colored_icon(alias, size, color, background))
             items.append(("icon", icons[key], x, y))
+            continue
+        if t == "image":
+            data = el.get("data") or el.get("src") or ""
+            w, h = round(el.get("width", size)), round(el.get("height", size))
+            try:
+                bitmaps.append(embedded_image(data, max(1, w), max(1, h), background))
+            except Exception:
+                warnings.append("Ein Bild konnte nicht gelesen werden und fehlt.")
+                continue
+            items.append(("icon", len(bitmaps) - 1, x, y))
             continue
         chars = charset(SUPPORT["types"][t]["chars"], el)
         if not chars:
@@ -233,12 +258,9 @@ def build(design_path, out):
     font_xml.append("</fonts>")
     (fonts_dir / "fonts.xml").write_text("\n".join(font_xml) + "\n", encoding="utf-8")
 
-    icon_images = []
     draw_xml = ["<drawables>", '    <bitmap id="LauncherIcon" filename="launcher_icon.png"/>']
-    for i, (alias, size, color) in enumerate(icon_keys):
-        img = colored_icon(alias, size, color, background)
+    for i, img in enumerate(bitmaps):
         img.save(draw_dir / f"b{i}.png")
-        icon_images.append(img)
         draw_xml.append(f'    <bitmap id="B{i}" filename="b{i}.png"/>')
     draw_xml.append("</drawables>")
     (draw_dir / "drawables.xml").write_text("\n".join(draw_xml) + "\n", encoding="utf-8")
@@ -300,7 +322,7 @@ def build(design_path, out):
                 draw.append(f"        dc.fillCircle(_ox + {x + r}, _oy + {y + r}, {r});")
 
     font_loads = ", ".join(f"WatchUi.loadResource(Rez.Fonts.F{i}) as FontResource" for i in range(len(font_keys)))
-    bitmap_loads = ", ".join(f"WatchUi.loadResource(Rez.Drawables.B{i}) as BitmapResource" for i in range(len(icon_keys)))
+    bitmap_loads = ", ".join(f"WatchUi.loadResource(Rez.Drawables.B{i}) as BitmapResource" for i in range(len(bitmaps)))
     view = f"""import Toybox.Graphics;
 import Toybox.Lang;
 import Toybox.System;
@@ -373,7 +395,7 @@ class FaceView extends WatchUi.WatchFace {{
             bitmap_fonts[fi].draw(preview, x, y, sample, color, align)
         elif it[0] == "icon":
             _, bi, x, y = it
-            preview.paste(icon_images[bi], (x, y))
+            preview.paste(bitmaps[bi], (x, y))
         else:
             _, shape, x, y, size, color, w, h = it
             rgb = ((color >> 16) & 255, (color >> 8) & 255, color & 255)
