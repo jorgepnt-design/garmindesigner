@@ -113,7 +113,9 @@ jobs:
         if: always()
         with:
           name: zifferblaetter
-          path: dist/
+          path: |
+            dist/*.prg
+            dist/*.png
 
       - name: Als Release "neueste" veroeffentlichen
         if: always()
@@ -122,6 +124,6 @@ jobs:
         run: |
           ls dist/*.prg >/dev/null 2>&1 || exit 0
           gh release delete neueste --yes --cleanup-tag || true
-          gh release create neueste dist/* \
+          gh release create neueste dist/*.prg dist/*.png \
             --title "Zifferblaetter – neueste Version" \
             --notes "Automatisch gebaut aus ${GITHUB_SHA::7}. Die passende .prg herunterladen und per USB in GARMIN/APPS auf die Uhr kopieren."
