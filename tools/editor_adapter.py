@@ -2,12 +2,12 @@
 import base64,io,json,uuid
 from pathlib import Path
 from PIL import Image
-from editor_build import generate
+from editor_build import generate,identity,RENDERER_VERSION
 SAMPLES={'time':'20:35','hours':'20','minutes':':35','seconds':':42','date':'22.10.2026','battery':'78%','temperature':'16°C','distance':'8.42','alarmCount':'2','alarmStatus':'AKTIV'}
 def build_editor(design,out,slug):
     if design.get('renderVersion')!=1:raise ValueError('Expected editor pixel export')
     generate(design,out)
-    manifest=out/'manifest.xml';manifest.write_text(manifest.read_text().replace('c5fa872a0f294834a22d4d4ad44c0641',uuid.uuid5(uuid.UUID('6f1d3c2e-5a4b-4c8d-9e7f-0a1b2c3d4e5f'),slug).hex))
+    build_id,app_name,app_id=identity(design)
     preview=Image.new('RGBA',(448,486),design['background'])
     for i,e in enumerate(design['elements']):
         if not e.get('visible',True):continue
@@ -19,5 +19,5 @@ def build_editor(design,out,slug):
                 if ch not in a['glyphs']:continue
                 g=a['glyphs'][ch];mask=im.crop((g['x'],0,g['x']+g['w'],a['height'])).getchannel('A');tile=Image.new('RGBA',mask.size,e['color']);tile.putalpha(mask);preview.alpha_composite(tile,(x,round(e['y'])));x+=g['w']
     preview.convert('RGB').save(out/'vorschau.png')
-    (out/'build.json').write_text(json.dumps({'slug':slug,'name':design.get('name',slug),'devices':['venux1'],'warnings':[],'renderVersion':1}))
+    (out/'build.json').write_text(json.dumps({'slug':slug,'name':design.get('name',slug),'devices':['venux1'],'warnings':[],'renderVersion':1,'renderer':RENDERER_VERSION,'buildId':build_id,'appName':app_name,'appId':app_id,'dateFormat':'DD.MM.YYYY'}))
     print('Editor pixel export preserved:',slug)

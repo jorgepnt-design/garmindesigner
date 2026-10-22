@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Build an editor JSON (including embedded PNGs) as a Venu X1 watchface."""
-import argparse,base64,hashlib,io,json,math,os,re,subprocess,shutil
+import argparse,base64,hashlib,io,json,math,os,re,subprocess,shutil,uuid
 from pathlib import Path
 from PIL import Image,ImageDraw,ImageFont
 from xml.sax.saxutils import escape
@@ -85,8 +85,16 @@ def rendered_image(asset):
     if im.width>16000 or im.height>486 or im.width*im.height>4000000:raise ValueError('Rendered asset dimensions too large')
     return im.convert('RGBA')
 
+RENDERER_VERSION = "P2"
+def identity(d):
+    build_id = str(d.get("buildId") or hashlib.sha256(json.dumps(d,sort_keys=True).encode()).hexdigest()[:8]).upper()
+    if not re.fullmatch("[A-F0-9]{8}",build_id):raise ValueError("Invalid build identifier")
+    name = str(d.get("name") or "Jorge Custom")[:18]+" "+RENDERER_VERSION+"-"+build_id
+    app_id = uuid.uuid5(uuid.UUID("6f1d3c2e-5a4b-4c8d-9e7f-0a1b2c3d4e5f"),RENDERER_VERSION+":"+build_id+":"+hashlib.sha256(json.dumps(d,sort_keys=True).encode()).hexdigest()).hex
+    return build_id,name,app_id
+
 def generate(d,out):
-    validate(d);build_id=d.get("buildId") or hashlib.sha256(json.dumps(d,sort_keys=True).encode()).hexdigest()[:8].upper();app_name=str(d.get("name") or "Jorge Custom")[:18]+" E-"+str(build_id)[:8];out.mkdir(parents=True,exist_ok=True);res=out/'resources';res.mkdir(exist_ok=True);src=out/'source';src.mkdir(exist_ok=True)
+    validate(d);build_id,app_name,app_id=identity(d);out.mkdir(parents=True,exist_ok=True);res=out/'resources';res.mkdir(exist_ok=True);src=out/'source';src.mkdir(exist_ok=True)
     resources=[];initial=[];render=[];fontids={};pixel_tables=[];chars='0123456789:.-% °CkmAKTIVUS'
     for i,e in enumerate(d['elements']):
         if not e.get('visible',True):continue
@@ -100,6 +108,9 @@ def generate(d,out):
                 if type(bx)!=int or type(by)!=int or not 0<=bx<448 or not 0<=by<486 or im.width>448 or im.height>486:raise ValueError('Invalid bitmap bounds')
                 im.save(res/f'Exact{i}.png');resources.append(f'<bitmap id="Exact{i}" filename="Exact{i}.png" packingFormat="png" automaticPalette="false" dithering="none"/>');initial.append(f'images[{i}] = WatchUi.loadResource(Rez.Drawables.Exact{i});');render.append(f'dc.drawBitmap({bx},{by},images[{i}]);');continue
             if asset.get('kind')!='font' or im.height!=asset.get('height'):raise ValueError('Invalid font pixel asset')
+            required={'time':'0123456789:','hours':'0123456789','minutes':'0123456789:','seconds':'0123456789:','date':'0123456789.','battery':'0123456789%','temperature':'0123456789-°C','distance':'0123456789.-','alarmCount':'0123456789','alarmStatus':'AKTIVUS'}.get(kind,'')
+            missing=set(required)-set(asset.get('glyphs',{}))
+            if missing:raise ValueError('Missing glyphs for '+kind+': '+''.join(sorted(missing)))
             table=[]
             for n,(ch,g) in enumerate(asset.get('glyphs',{}).items()):
                 gx,w=g.get('x'),g.get('w')
@@ -119,6 +130,7 @@ def generate(d,out):
     Image.new('RGB',(65,65),'black').save(res/'launcher.png');bitmaps.append('<bitmap id="LauncherIcon" filename="launcher.png"/>')
     (res/'resources.xml').write_text('<resources><fonts>'+''.join(fontxml)+'</fonts><bitmaps>'+''.join(bitmaps)+'</bitmaps><strings><string id="AppName">'+escape(app_name)+'</string></strings></resources>')
     manifest='''<?xml version="1.0"?><iq:manifest xmlns:iq="http://www.garmin.com/xml/connectiq" version="3"><iq:application id="c5fa872a0f294834a22d4d4ad44c0641" type="watchface" name="@Strings.AppName" entry="CustomApp" launcherIcon="@Drawables.LauncherIcon" minApiLevel="4.2.0"><iq:products><iq:product id="venux1"/></iq:products><iq:permissions/><iq:languages><iq:language>deu</iq:language><iq:language>eng</iq:language></iq:languages><iq:barrels/></iq:application></iq:manifest>'''
+    manifest=manifest.replace('c5fa872a0f294834a22d4d4ad44c0641',app_id)
     (out/'manifest.xml').write_text(manifest);(out/'monkey.jungle').write_text('project.manifest = manifest.xml\nbase.sourcePath = source\nbase.resourcePath = resources\n')
     code='''import Toybox.Application;
 import Toybox.WatchUi;

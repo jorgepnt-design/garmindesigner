@@ -53,6 +53,9 @@ jobs:
           go install github.com/lindell/connect-iq-sdk-manager-cli@v0.8.4
           pip install pillow==12.3.0
 
+      - name: Pixel-Export pruefen
+        run: python3 -m unittest discover -s tests -v
+
       - name: Designs in Connect-IQ-Projekte umwandeln
         run: |
           mkdir -p build
@@ -106,6 +109,7 @@ jobs:
               fi
             done
           done
+          python3 tools/package_editor.py build dist
           ls -la dist
           exit $failed
 
@@ -116,14 +120,18 @@ jobs:
           path: |
             dist/*.prg
             dist/*.png
+            dist/*.json
 
       - name: Als Release "neueste" veroeffentlichen
-        if: always()
+        if: success()
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           ls dist/*.prg >/dev/null 2>&1 || exit 0
+          gh release create "build-${GITHUB_SHA}" dist/*.prg dist/*.png dist/*.json \
+            --title "PRG-Bau ${GITHUB_SHA::7}" \
+            --notes "Unveraenderlicher Bau aus ${GITHUB_SHA}. Editor-Dateien mit P2 und Baukennung verwenden."
           gh release delete neueste --yes --cleanup-tag || true
-          gh release create neueste dist/*.prg dist/*.png \
+          gh release create neueste dist/*.prg dist/*.png dist/*.json \
             --title "Zifferblaetter – neueste Version" \
             --notes "Automatisch gebaut aus ${GITHUB_SHA::7}. Die passende .prg herunterladen und per USB in GARMIN/APPS auf die Uhr kopieren."
