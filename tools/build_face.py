@@ -170,6 +170,10 @@ def mc_string(s):
 
 def build(design_path, out):
     design = json.loads(Path(design_path).read_text(encoding="utf-8"))
+    if design.get("renderVersion") == 1:
+        from editor_adapter import build_editor
+        if out.exists(): shutil.rmtree(out)
+        return build_editor(design, out, slugify(Path(design_path).stem))
     name = (design.get("name") or Path(design_path).stem).strip()[:30]
     slug = slugify(Path(design_path).stem)
     width, height = int(design.get("width", 448)), int(design.get("height", 486))
@@ -416,3 +420,4 @@ class FaceView extends WatchUi.WatchFace {{
 
 if __name__ == "__main__":
     build(sys.argv[1], Path(sys.argv[2]))
+
