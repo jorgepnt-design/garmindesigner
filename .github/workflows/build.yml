@@ -3,17 +3,25 @@ name: Zifferblatt bauen
 on:
   push:
     branches: [main]
+    paths:
+      - 'designs/**'
+      - 'tools/**'
+      - 'ElegantFace/**'
+      - 'web/support.json'
+      - '.github/workflows/build.yml'
   workflow_dispatch:
 
 permissions:
   contents: write
 
+# Nacheinander bauen, damit sich zwei Uploads nicht das Release ueberschreiben
+concurrency:
+  group: build
+  cancel-in-progress: false
+
 jobs:
   build:
     runs-on: ubuntu-latest
-    env:
-      DEVICE: venux1
-      PROJECT: ElegantFace
     steps:
       - uses: actions/checkout@v4
 
@@ -36,8 +44,22 @@ jobs:
         with:
           go-version: stable
 
-      - name: Connect IQ SDK Manager installieren
-        run: go install github.com/lindell/connect-iq-sdk-manager-cli@v0.8.4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Werkzeuge installieren
+        run: |
+          go install github.com/lindell/connect-iq-sdk-manager-cli@v0.8.4
+          pip install pillow==12.3.0
+
+      - name: Designs in Connect-IQ-Projekte umwandeln
+        run: |
+          mkdir -p build
+          shopt -s nullglob
+          for f in designs/*.json; do
+            python3 tools/build_face.py "$f" "build/$(basename "$f" .json)"
+          done
 
       - name: SDK und Geraetedaten laden
         env:
@@ -48,7 +70,10 @@ jobs:
           "$M" agreement accept
           "$M" login
           "$M" sdk set ">=8.0.0"
-          "$M" device download --manifest "$PROJECT/manifest.xml"
+          shopt -s nullglob
+          for m in ElegantFace/manifest.xml build/*/manifest.xml; do
+            "$M" device download --manifest "$m"
+          done
           echo "$("$M" sdk current-path --bin)" >> "$GITHUB_PATH"
 
       - name: Entwickler-Schluessel bereitstellen
@@ -64,19 +89,39 @@ jobs:
             rm key.pem
           fi
 
-      - name: .prg bauen
-        run: monkeyc -d "$DEVICE" -f "$PROJECT/monkey.jungle" -o "$PROJECT.prg" -y developer_key.der -w
+      - name: .prg-Dateien bauen
+        run: |
+          mkdir -p dist
+          monkeyc -d venux1 -f ElegantFace/monkey.jungle -o dist/ElegantFace.prg -y developer_key.der -w
+          cp ElegantFace/vorschau.png dist/ElegantFace.png
+          failed=0
+          shopt -s nullglob
+          for dir in build/*/; do
+            slug=$(basename "$dir")
+            cp "$dir/vorschau.png" "dist/$slug.png"
+            for dev in $(python3 -c "import json,sys;print(' '.join(json.load(open(sys.argv[1]))['devices']))" "$dir/build.json"); do
+              if ! monkeyc -d "$dev" -f "$dir/monkey.jungle" -o "dist/$slug-$dev.prg" -y developer_key.der -w; then
+                echo "::error::$slug fuer $dev konnte nicht gebaut werden."
+                failed=1
+              fi
+            done
+          done
+          ls -la dist
+          exit $failed
 
       - uses: actions/upload-artifact@v4
+        if: always()
         with:
-          name: ${{ env.PROJECT }}-${{ env.DEVICE }}
-          path: ${{ env.PROJECT }}.prg
+          name: zifferblaetter
+          path: dist/
 
       - name: Als Release "neueste" veroeffentlichen
+        if: always()
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          ls dist/*.prg >/dev/null 2>&1 || exit 0
           gh release delete neueste --yes --cleanup-tag || true
-          gh release create neueste "$PROJECT.prg" "$PROJECT/vorschau.png" \
-            --title "Zifferblatt Elegant – Venu X1" \
-            --notes "Automatisch gebaut aus ${GITHUB_SHA::7}. ElegantFace.prg herunterladen und per USB in GARMIN/APPS auf die Uhr kopieren."
+          gh release create neueste dist/* \
+            --title "Zifferblaetter – neueste Version" \
+            --notes "Automatisch gebaut aus ${GITHUB_SHA::7}. Die passende .prg herunterladen und per USB in GARMIN/APPS auf die Uhr kopieren."

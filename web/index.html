@@ -1,0 +1,291 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Garmin Designer</title>
+<meta name="theme-color" content="#0d0d0f">
+<style>
+  :root {
+    --bg: #0d0d0f;
+    --panel: #17171b;
+    --line: #2a2a31;
+    --text: #ecebe8;
+    --muted: #9a9891;
+    --gold: #e8cd91;
+    --ok: #7fd29a;
+    --err: #f08a7e;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font: 16px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+  main { max-width: 760px; margin: 0 auto; padding: 32px 16px 64px; }
+  h1 { font-family: GDSerif600, Georgia, serif; font-weight: 600; font-size: 40px; color: var(--gold); margin: 0 0 4px; }
+  h2 { font-size: 18px; margin: 0 0 12px; }
+  p { margin: 0 0 12px; }
+  .lead { color: var(--muted); margin-bottom: 28px; }
+  section { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 20px; margin-bottom: 20px; }
+  label { display: block; font-size: 14px; color: var(--muted); margin: 12px 0 6px; }
+  input[type=text], input[type=password] {
+    width: 100%; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--line);
+    background: #0f0f12; color: var(--text); font: inherit;
+  }
+  button, .button {
+    display: inline-block; padding: 11px 18px; border-radius: 10px; border: 0; cursor: pointer;
+    background: var(--gold); color: #1a1508; font: inherit; font-weight: 600; text-decoration: none;
+  }
+  button.secondary { background: transparent; color: var(--text); border: 1px solid var(--line); }
+  button:disabled { opacity: .5; cursor: default; }
+  .drop {
+    border: 1.5px dashed var(--line); border-radius: 12px; padding: 28px 16px; text-align: center;
+    color: var(--muted); cursor: pointer;
+  }
+  .drop.over { border-color: var(--gold); color: var(--text); }
+  .row { display: flex; gap: 20px; flex-wrap: wrap; align-items: flex-start; }
+  canvas { width: 224px; height: auto; border-radius: 28px; background: #000; border: 6px solid #26262c; }
+  .grow { flex: 1; min-width: 220px; }
+  .warn { color: var(--err); font-size: 14px; margin: 8px 0 0; padding-left: 18px; }
+  .status { margin-top: 14px; font-size: 15px; }
+  .status.ok { color: var(--ok); }
+  .status.err { color: var(--err); }
+  .hidden { display: none; }
+  .faces { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 14px; }
+  .face { text-align: center; font-size: 14px; }
+  .face img { width: 100%; border-radius: 18px; border: 4px solid #26262c; background: #000; }
+  .face a { color: var(--gold); display: block; margin-top: 4px; word-break: break-all; }
+  details summary { cursor: pointer; color: var(--gold); }
+  ol { padding-left: 20px; margin: 8px 0; }
+  li { margin-bottom: 6px; }
+  code { background: #0f0f12; padding: 1px 6px; border-radius: 6px; }
+  .small { font-size: 14px; color: var(--muted); }
+  a { color: var(--gold); }
+</style>
+</head>
+<body>
+<main>
+  <h1>Garmin Designer</h1>
+  <p class="lead">Design-Datei (JSON) hochladen und als Zifferblatt (.prg) für die Garmin Venu X1 herunterladen.</p>
+
+  <section id="tokenBox">
+    <h2>1. Zugang zu GitHub</h2>
+    <p class="small" id="tokenState"></p>
+    <details id="tokenHelp">
+      <summary>So bekommst du den Schlüssel (einmalig)</summary>
+      <ol>
+        <li><a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener">github.com/settings/personal-access-tokens/new</a> öffnen.</li>
+        <li><b>Token name:</b> z. B. <code>Garmin Designer</code>. <b>Expiration:</b> z. B. 1 Jahr.</li>
+        <li><b>Repository access:</b> „Only select repositories“ → <code>garmindesigner</code>.</li>
+        <li><b>Permissions → Repository permissions:</b> <code>Contents</code> auf „Read and write“, <code>Actions</code> auf „Read-only“.</li>
+        <li>Unten auf <b>Generate token</b> klicken, den Schlüssel kopieren und hier einfügen.</li>
+      </ol>
+      <p class="small">Der Schlüssel bleibt nur in diesem Browser gespeichert und geht nur an GitHub.</p>
+    </details>
+    <label for="token">GitHub-Schlüssel</label>
+    <input id="token" type="password" autocomplete="off" placeholder="github_pat_…">
+    <div style="margin-top:12px"><button id="saveToken" class="secondary">Speichern</button></div>
+  </section>
+
+  <section>
+    <h2>2. Design hochladen</h2>
+    <div class="drop" id="drop">JSON-Datei hierher ziehen oder <u>auswählen</u></div>
+    <input id="file" type="file" accept=".json,application/json" class="hidden">
+    <div id="designBox" class="hidden" style="margin-top:18px">
+      <div class="row">
+        <canvas id="preview" width="448" height="486"></canvas>
+        <div class="grow">
+          <label for="slug">Dateiname</label>
+          <input id="slug" type="text">
+          <p class="small" id="slugInfo" style="margin-top:6px"></p>
+          <ul class="warn" id="warnings"></ul>
+          <div style="margin-top:14px"><button id="convert">In .prg umwandeln</button></div>
+          <div class="status" id="status"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>3. Fertige Zifferblätter</h2>
+    <p class="small">Die .prg herunterladen, Uhr per USB anschließen und die Datei in den Ordner <code>GARMIN/APPS</code> kopieren. Danach auf der Uhr das Zifferblatt lange drücken und auswählen.</p>
+    <div class="faces" id="faces"><p class="small">Wird geladen …</p></div>
+  </section>
+</main>
+
+<script>
+const OWNER = "jorgepnt-design";
+const REPO = "garmindesigner";
+const API = `https://api.github.com/repos/${OWNER}/${REPO}`;
+const $ = (id) => document.getElementById(id);
+
+let support = null, icons = null, design = null, rawJson = "";
+
+function getToken() { try { return localStorage.getItem("gd_token") || ""; } catch { return ""; } }
+function setToken(t) { try { localStorage.setItem("gd_token", t); } catch {} }
+function showTokenState() {
+  const has = !!getToken();
+  $("tokenState").textContent = has ? "Schlüssel ist gespeichert ✓" : "Noch kein Schlüssel gespeichert.";
+  $("tokenHelp").open = !has;
+}
+$("saveToken").onclick = () => { setToken($("token").value.trim()); $("token").value = ""; showTokenState(); };
+
+async function gh(path, opts = {}) {
+  const headers = { "Accept": "application/vnd.github+json", ...(opts.headers || {}) };
+  const t = getToken();
+  if (t) headers.Authorization = `Bearer ${t}`;
+  const res = await fetch(path.startsWith("http") ? path : API + path, { ...opts, headers });
+  if (!res.ok && res.status !== 404) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(`${res.status}: ${body.message || res.statusText}`);
+  }
+  return res.status === 404 ? null : res.json();
+}
+
+// ---------- Vorschau (gleiche Regeln wie tools/build_face.py) ----------
+function slugify(name) {
+  return (name || "").toLowerCase().replace(/ä/g, "ae").replace(/ö/g, "oe").replace(/ü/g, "ue").replace(/ß/g, "ss")
+    .replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") || "design";
+}
+function fontFamily(name) {
+  const n = (name || "").toLowerCase();
+  if (n.includes("label") || n.includes("sans") || n.includes("mono")) return ["GDInter", 500];
+  if (n.includes("battery") || n.includes("light")) return ["GDSerif500", 500];
+  return ["GDSerif600", 600];
+}
+async function loadFonts() {
+  const faces = [["GDSerif600", "fonts/CormorantGaramond-600.ttf"], ["GDSerif500", "fonts/CormorantGaramond-500.ttf"],
+                 ["GDInter", "fonts/Inter-Medium.otf"]];
+  await Promise.all(faces.map(async ([fam, url]) => {
+    try { const f = new FontFace(fam, `url(${url})`); await f.load(); document.fonts.add(f); } catch {}
+  }));
+}
+
+function render() {
+  const w = design.width || 448, h = design.height || 486;
+  const c = $("preview"); c.width = w; c.height = h;
+  const ctx = c.getContext("2d");
+  ctx.fillStyle = design.background || "#000"; ctx.fillRect(0, 0, w, h);
+  const warnings = [];
+  for (const el of design.elements || []) {
+    if (el.visible === false) continue;
+    const t = support.types[el.type];
+    if (!t) { warnings.push(`Element-Typ „${el.type}“ wird noch nicht unterstützt und fehlt.`); continue; }
+    const x = Math.round(el.x || 0), y = Math.round(el.y || 0), size = Math.max(1, Math.round(el.size || 20));
+    ctx.fillStyle = ctx.strokeStyle = el.color || "#fff";
+    if (el.type === "icon") {
+      const icon = el.icon || "";
+      if (support.shapes.includes(icon)) {
+        if (icon === "line" || icon === "rect") ctx.fillRect(x, y, Math.max(1, el.width ?? size), Math.max(1, el.height ?? size));
+        else { ctx.beginPath(); ctx.arc(x + size / 2, y + size / 2, size / 2, 0, Math.PI * 2);
+               if (icon === "ring") { ctx.lineWidth = 2; ctx.stroke(); } else ctx.fill(); }
+        continue;
+      }
+      const alias = support.iconAliases[icon];
+      if (!alias) { warnings.push(`Icon „${icon}“ gibt es noch nicht und fehlt.`); continue; }
+      ctx.save(); ctx.translate(x, y); ctx.scale(size / 24, size / 24); ctx.fill(new Path2D(icons[alias])); ctx.restore();
+      continue;
+    }
+    const text = t.chars === "text" ? (el.text || (el.type === "alarmStatus" ? "WECKER" : "")) : t.sample;
+    if (!text) continue;
+    const [fam, weight] = fontFamily(el.font);
+    ctx.font = `${weight} ${size}px ${fam}`;
+    ctx.textBaseline = "alphabetic";
+    const align = el.align || "left";
+    ctx.textAlign = align;
+    const ascent = ctx.measureText(text).fontBoundingBoxAscent || size * 0.93;
+    ctx.fillText(text, x, y + ascent);
+  }
+  $("warnings").innerHTML = warnings.map((w) => `<li>${w.replace(/</g, "&lt;")}</li>`).join("");
+}
+
+// ---------- Datei laden ----------
+async function openFile(file) {
+  rawJson = await file.text();
+  try { design = JSON.parse(rawJson); } catch { alert("Die Datei ist kein gültiges JSON."); return; }
+  if (!Array.isArray(design.elements)) { alert("In der Datei fehlt die Liste „elements“."); return; }
+  $("designBox").classList.remove("hidden");
+  $("slug").value = slugify(design.name || file.name.replace(/\.json$/i, ""));
+  $("status").textContent = ""; $("status").className = "status";
+  updateSlugInfo();
+  render();
+}
+async function updateSlugInfo() {
+  const slug = slugify($("slug").value);
+  $("slugInfo").textContent = `Ergebnis: ${slug}-venux1.prg`;
+}
+$("slug").oninput = updateSlugInfo;
+$("drop").onclick = () => $("file").click();
+$("file").onchange = (e) => e.target.files[0] && openFile(e.target.files[0]);
+$("drop").ondragover = (e) => { e.preventDefault(); $("drop").classList.add("over"); };
+$("drop").ondragleave = () => $("drop").classList.remove("over");
+$("drop").ondrop = (e) => { e.preventDefault(); $("drop").classList.remove("over"); e.dataTransfer.files[0] && openFile(e.dataTransfer.files[0]); };
+
+// ---------- Hochladen und Bau verfolgen ----------
+function status(text, cls = "") { $("status").innerHTML = text; $("status").className = "status " + cls; }
+const b64 = (s) => btoa(String.fromCharCode(...new TextEncoder().encode(s)));
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+$("convert").onclick = async () => {
+  if (!getToken()) { status("Bitte zuerst oben den GitHub-Schlüssel speichern.", "err"); $("tokenHelp").open = true; return; }
+  const slug = slugify($("slug").value);
+  const path = `designs/${slug}.json`;
+  $("convert").disabled = true;
+  try {
+    status("Design wird hochgeladen …");
+    const existing = await gh(`/contents/${path}`);
+    if (existing && !confirm(`„${slug}“ gibt es schon. Überschreiben?`)) { status(""); return; }
+    const put = await gh(`/contents/${path}`, {
+      method: "PUT",
+      body: JSON.stringify({ message: `Design ${design.name || slug} hochladen`, content: b64(rawJson),
+                             ...(existing ? { sha: existing.sha } : {}) }),
+    });
+    const sha = put.commit.sha;
+    status("Hochgeladen. GitHub baut das Zifferblatt, das dauert etwa 1–2 Minuten …");
+    let run = null;
+    for (let i = 0; i < 90; i++) {
+      await sleep(8000);
+      const runs = await gh(`/actions/runs?head_sha=${sha}&per_page=5`);
+      run = runs && runs.workflow_runs.find((r) => r.path === ".github/workflows/build.yml");
+      if (!run) continue;
+      if (run.status !== "completed") { status(`GitHub baut gerade … (${run.status === "queued" ? "wartet" : "läuft"})`); continue; }
+      break;
+    }
+    if (!run || run.status !== "completed") { status(`Der Bau dauert ungewöhnlich lange. <a href="https://github.com/${OWNER}/${REPO}/actions" target="_blank">Bei GitHub nachsehen</a>`, "err"); return; }
+    if (run.conclusion !== "success") { status(`Der Bau ist fehlgeschlagen. <a href="${run.html_url}" target="_blank">Fehlermeldung ansehen</a>`, "err"); return; }
+    const url = `https://github.com/${OWNER}/${REPO}/releases/download/neueste/${slug}-venux1.prg`;
+    status(`Fertig! <a class="button" style="margin-top:8px" href="${url}">${slug}-venux1.prg herunterladen</a>`, "ok");
+    loadFaces();
+  } catch (e) {
+    status(`Fehler: ${String(e.message).replace(/</g, "&lt;")}. Ist der GitHub-Schlüssel richtig?`, "err");
+  } finally {
+    $("convert").disabled = false;
+  }
+};
+
+// ---------- Fertige Zifferblaetter ----------
+async function loadFaces() {
+  try {
+    const rel = await gh(`/releases/tags/neueste`);
+    if (!rel) { $("faces").innerHTML = `<p class="small">Noch keine fertigen Zifferblätter.</p>`; return; }
+    const pngs = Object.fromEntries(rel.assets.filter((a) => a.name.endsWith(".png")).map((a) => [a.name.replace(/\.png$/, ""), a.browser_download_url]));
+    const prgs = rel.assets.filter((a) => a.name.endsWith(".prg"));
+    $("faces").innerHTML = prgs.map((a) => {
+      const base = a.name.replace(/\.prg$/, "");
+      const img = pngs[base] || pngs[base.replace(/-[a-z0-9]+$/, "")];
+      return `<div class="face">${img ? `<img src="${img}" alt="">` : ""}<a href="${a.browser_download_url}">${a.name}</a></div>`;
+    }).join("") || `<p class="small">Noch keine fertigen Zifferblätter.</p>`;
+  } catch (e) {
+    $("faces").innerHTML = `<p class="small">Liste konnte nicht geladen werden (${String(e.message).replace(/</g, "&lt;")}).</p>`;
+  }
+}
+
+(async () => {
+  showTokenState();
+  [support, icons] = await Promise.all([fetch("support.json").then((r) => r.json()), fetch("icons.json").then((r) => r.json())]);
+  await loadFonts();
+  loadFaces();
+})();
+</script>
+</body>
+</html>

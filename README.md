@@ -1,49 +1,51 @@
-# Garmin Designer – Zifferblatt „Elegant“ für die Venu X1
+# Garmin Designer
 
-![Vorschau](ElegantFace/vorschau.png)
+Wandelt Designs aus dem Zifferblatt-Editor (JSON) in Garmin-Zifferblätter (`.prg`) für die Venu X1 um.
 
-Connect-IQ-Zifferblatt, erzeugt aus [`design/mein-design.json`](design/mein-design.json).
-GitHub baut daraus bei jedem Push automatisch die Datei **`ElegantFace.prg`**.
+**Webseite:** https://jorgepnt-design.github.io/garmindesigner/
 
-## Einmalig einrichten
+## So geht's
 
-Im Repository auf GitHub: **Settings → Secrets and variables → Actions → New repository secret**
-und diese zwei Einträge anlegen:
+1. Auf der Webseite einmalig einen GitHub-Schlüssel speichern (die Seite erklärt jeden Schritt).
+2. Die JSON-Datei hochladen und prüfen, wie die Vorschau aussieht.
+3. Auf **In .prg umwandeln** tippen. Nach 1–2 Minuten erscheint der Download.
+4. Uhr per USB anschließen, die `.prg` in den Ordner **`GARMIN/APPS`** kopieren,
+   dann auf der Uhr das Zifferblatt lange drücken und auswählen.
 
-| Name | Wert |
+Alle fertigen Dateien liegen auch unter **Releases → neueste**.
+
+## Einmalige Einrichtung (schon erledigt)
+
+- Secrets `GARMIN_USERNAME` und `GARMIN_PASSWORD` unter *Settings → Secrets and variables → Actions*.
+  Damit lädt der Bau das Connect IQ SDK und die Gerätedaten von Garmin.
+- *Settings → Pages → Source:* **GitHub Actions**.
+
+## Was der Konverter kann
+
+| Typ im JSON | Anzeige |
 |---|---|
-| `GARMIN_USERNAME` | E-Mail-Adresse deines Garmin-Kontos |
-| `GARMIN_PASSWORD` | Passwort deines Garmin-Kontos |
+| `hours`, `minutes`, `seconds`, `time`, `ampm` | Uhrzeit (12/24 h wie in der Uhr eingestellt) |
+| `date`, `weekday`, `day`, `month`, `year` | Datum in der Sprache der Uhr |
+| `battery` | Akku in % |
+| `temperature` | aktuelle Temperatur |
+| `distance` | heutige Strecke in km bzw. Meilen |
+| `steps`, `heartRate`, `calories`, `floors`, `activeMinutes` | Aktivitätswerte |
+| `notifications`, `alarmCount`, `alarmStatus` | Benachrichtigungen, Wecker |
+| `text` | fester Text |
+| `icon` | Icons (Sonne, Läufer, Wecker, Herz, Glocke, Flamme, Akku, Bluetooth, Schritte, Mond, Wolke, Kalender) und Formen (`line`, `rect`, `circle`, `ring`, `dot`) |
 
-Damit lädt der Bau das Connect IQ SDK und die Gerätedaten der Venu X1 von Garmin.
-Ist für das Garmin-Konto eine Zwei-Faktor-Anmeldung aktiv, klappt das automatische Login nicht.
+Unbekannte Typen und Icons werden weggelassen; die Webseite zeigt dann einen Hinweis.
+Die Liste steht in [`web/support.json`](web/support.json).
 
-Danach unter **Actions → Zifferblatt bauen → Run workflow** den Bau starten.
-
-## .prg auf die Uhr bringen
-
-1. Unter **Releases → neueste** die Datei `ElegantFace.prg` herunterladen.
-2. Uhr per USB anschließen und die Datei in den Ordner **`GARMIN/APPS`** kopieren
-   (auf dem Mac mit *OpenMTP* oder *Android File Transfer*).
-3. Uhr trennen, Zifferblatt lange drücken und **Elegant** auswählen.
-
-## Was angezeigt wird
-
-| Element | Datenquelle |
-|---|---|
-| Datum oben links | Wochentag, Tag, Monat (Sprache der Uhr) |
-| Akku oben rechts | Ladestand in % |
-| Stunden, Minuten, Sekunden | Uhrzeit (12/24 h wie in der Uhr eingestellt) |
-| Wetter | aktuelle Temperatur aus Garmin-Wetter (°C/°F wie eingestellt) |
-| KM heute | heute zurückgelegte Strecke („MI HEUTE“ bei Meilen) |
-| Wecker | Anzahl der eingestellten Wecker |
-
-Im Always-on-Modus zeigt das Zifferblatt nur eine kleine, gedimmte Uhrzeit, die jede Minute
-ein Stück wandert, damit das AMOLED-Display nicht einbrennt.
+Optional im JSON: `"width"`/`"height"` (Größe der Design-Fläche, Standard 448 × 486) und
+`"devices"` (Liste von Connect-IQ-Geräten, Standard `["venux1"]`).
 
 ## Aufbau
 
-- `ElegantFace/` – das Connect-IQ-Projekt (Monkey C, Schriften, Icons)
-- `design/` – das Design aus dem Editor
-- `tools/` – Skripte, mit denen Schriften, Icons und Vorschau erzeugt wurden
-  (Schrift: Cormorant Garamond aus `@fontsource/cormorant-garamond`, Inter Medium)
+- `designs/` – hochgeladene Designs; jedes wird zu `<name>-venux1.prg`
+- `tools/build_face.py` – erzeugt aus einem Design ein Connect-IQ-Projekt (Schriften, Icons, Monkey C, Vorschau)
+- `tools/template/` – fester Monkey-C-Code (App, Datenquellen)
+- `tools/fonts/` – Cormorant Garamond (Ziffern: lining/tabular) und Inter, beide SIL Open Font License
+- `tools/icons/` – Icon-Masken aus `web/icons.json` (Material Icons, Apache 2.0)
+- `web/` – die Webseite
+- `ElegantFace/`, `design/` – das erste, von Hand abgestimmte Zifferblatt „Elegant“

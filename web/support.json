@@ -1,0 +1,42 @@
+{
+  "types": {
+    "hours": { "chars": "digits", "sample": "10", "label": "Stunden" },
+    "minutes": { "chars": "digits", "sample": "42", "label": "Minuten" },
+    "seconds": { "chars": "digits", "sample": "37", "label": "Sekunden" },
+    "time": { "chars": "digits:", "sample": "10:42", "label": "Uhrzeit" },
+    "ampm": { "chars": "AMP", "sample": "AM", "label": "AM/PM" },
+    "date": { "chars": "upper", "sample": "MI 22. OKT", "label": "Datum" },
+    "weekday": { "chars": "upper", "sample": "MI", "label": "Wochentag" },
+    "day": { "chars": "digits", "sample": "22", "label": "Tag" },
+    "month": { "chars": "upper", "sample": "OKT", "label": "Monat" },
+    "year": { "chars": "digits", "sample": "2026", "label": "Jahr" },
+    "battery": { "chars": "digits%", "sample": "87%", "label": "Akku" },
+    "temperature": { "chars": "digits°-", "sample": "18°", "label": "Temperatur" },
+    "distance": { "chars": "digits.-", "sample": "4.2", "label": "Strecke heute" },
+    "steps": { "chars": "digits-", "sample": "6240", "label": "Schritte" },
+    "heartRate": { "chars": "digits-", "sample": "72", "label": "Puls" },
+    "calories": { "chars": "digits-", "sample": "1350", "label": "Kalorien" },
+    "floors": { "chars": "digits-", "sample": "8", "label": "Etagen" },
+    "activeMinutes": { "chars": "digits-", "sample": "45", "label": "Aktive Minuten" },
+    "notifications": { "chars": "digits-", "sample": "3", "label": "Benachrichtigungen" },
+    "alarmCount": { "chars": "digits-", "sample": "2", "label": "Anzahl Wecker" },
+    "alarmStatus": { "chars": "text", "sample": "WECKER", "label": "Wecker-Status" },
+    "text": { "chars": "text", "sample": "", "label": "Text" },
+    "icon": { "chars": "", "sample": "", "label": "Icon" }
+  },
+  "iconAliases": {
+    "sun": "sun", "weather": "sun", "temperature": "sun",
+    "run": "run", "running": "run", "distance": "run",
+    "alarm": "alarm", "clock": "alarm",
+    "heart": "heart", "heartRate": "heart", "pulse": "heart",
+    "bell": "bell", "notifications": "bell", "notification": "bell",
+    "flame": "flame", "fire": "flame", "calories": "flame",
+    "battery": "battery",
+    "bluetooth": "bluetooth", "phone": "bluetooth",
+    "walk": "walk", "steps": "walk", "footsteps": "walk",
+    "moon": "moon", "sleep": "moon",
+    "cloud": "cloud",
+    "calendar": "calendar", "date": "calendar"
+  },
+  "shapes": ["line", "rect", "circle", "ring", "dot"]
+}
