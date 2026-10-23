@@ -14,6 +14,22 @@ Wandelt Designs aus dem Zifferblatt-Editor (JSON) in Garmin-Zifferblätter (`.pr
 
 Alle fertigen Dateien liegen auch unter **Releases → neueste**.
 
+## Touch-Regression im Garmin-Simulator
+
+Nach dem Start des Connect-IQ-Simulators und mit Java im Suchpfad:
+
+```text
+python tools/test_editor_touch.py --sdk PFAD_ZUM_SDK --key PFAD_ZUM_ENTWICKLERSCHLUESSEL
+```
+
+Der Test kompiliert das Portugal-Editorprojekt und führt echte Monkey-C-Tests aus:
+Wetter-Symbol, Temperatur und Beschriftung, Uhrzeit ohne Verknüpfung, Alarmhinweis
+und Wetteransicht nach dem Ruhemodus. Die Testdoubles werden ohne Typprüfung
+kompiliert; der normale PRG-Bau bleibt unverändert.
+
+Monkey-C-Textwerte müssen mit `equals()` verglichen werden. Ein `==` kann auch
+bei gleichem Text fehlschlagen und hatte die Wetterzuordnung in P4–P6 blockiert.
+
 ## Einmalige Einrichtung (schon erledigt)
 
 - Secrets `GARMIN_USERNAME` und `GARMIN_PASSWORD` unter *Settings → Secrets and variables → Actions*.

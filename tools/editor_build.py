@@ -85,7 +85,7 @@ def rendered_image(asset):
     if im.width>16000 or im.height>486 or im.width*im.height>4000000:raise ValueError('Rendered asset dimensions too large')
     return im.convert('RGBA')
 
-RENDERER_VERSION = "P6"
+RENDERER_VERSION = "P7"
 def identity(d):
     build_id = str(d.get("buildId") or hashlib.sha256(json.dumps(d,sort_keys=True).encode()).hexdigest()[:8]).upper()
     if not re.fullmatch("[A-F0-9]{8}",build_id):raise ValueError("Invalid build identifier")
@@ -183,7 +183,7 @@ class CustomFace extends WatchUi.WatchFace {
  function onExitSleep() { sleeping=false;if(weatherPanel) { weatherUntil=0; } WatchUi.requestUpdate(); }
 
  function showWeather() {
-  weatherPanel=true;weatherUntil=0;showNotice("P6: WETTER "+touchPoint);
+  weatherPanel=true;weatherUntil=0;showNotice("P7: WETTER "+touchPoint);
  }
  function closeWeather() { weatherPanel=false;WatchUi.requestUpdate(); }
  function weatherValue(value,unit) { return value==null ? "--" : value.format("%.0f")+unit; }
@@ -192,7 +192,7 @@ class CustomFace extends WatchUi.WatchFace {
   dc.setColor(Graphics.COLOR_WHITE,Graphics.COLOR_TRANSPARENT);dc.drawText(420,y,Graphics.FONT_SMALL,value,Graphics.TEXT_JUSTIFY_RIGHT);
  }
  function drawNotice(dc) {
-  if(noticeText!="" && !sleeping) {
+  if(noticeText.length()>0 && !sleeping) {
    if(noticeUntil==0) { noticeUntil=System.getTimer()+15000; }
    if(System.getTimer()<noticeUntil) { dc.setColor(Graphics.COLOR_BLACK,Graphics.COLOR_BLACK);dc.fillRectangle(10,205,428,70);dc.setColor(Graphics.COLOR_WHITE,Graphics.COLOR_TRANSPARENT);dc.drawText(224,220,Graphics.FONT_XTINY,noticeText,Graphics.TEXT_JUSTIFY_CENTER); }
    else { noticeText=""; }
@@ -201,7 +201,7 @@ class CustomFace extends WatchUi.WatchFace {
  function drawWeather(dc) {
   dc.setColor(Graphics.COLOR_WHITE,Graphics.COLOR_BLACK);dc.clear();
   dc.drawText(28,24,Graphics.FONT_SMALL,"WETTER",Graphics.TEXT_JUSTIFY_LEFT);
-  dc.setColor(0xaaaaaa,Graphics.COLOR_TRANSPARENT);dc.drawText(420,28,Graphics.FONT_XTINY,"P6",Graphics.TEXT_JUSTIFY_RIGHT);
+  dc.setColor(0xaaaaaa,Graphics.COLOR_TRANSPARENT);dc.drawText(420,28,Graphics.FONT_XTINY,"P7",Graphics.TEXT_JUSTIFY_RIGHT);
   var current=null;try { current=Weather.getCurrentConditions(); } catch(error) {}
   if(current==null) {
    dc.setColor(Graphics.COLOR_WHITE,Graphics.COLOR_TRANSPARENT);
@@ -235,7 +235,7 @@ class CustomFace extends WatchUi.WatchFace {
   if(weatherUntil==0) { weatherUntil=System.getTimer()+30000; }
   if(System.getTimer()<weatherUntil) {
    try { drawWeather(dc);drawNotice(dc);return; }
-   catch(error) { weatherPanel=false;showNotice("P6: Wetterfehler");System.println("P6 weather: "+error.toString()); }
+   catch(error) { weatherPanel=false;showNotice("P7: Wetterfehler");System.println("P7 weather: "+error.toString()); }
   } else { weatherPanel=false; }
  }
  var date=Gregorian.info(Time.now(),Time.FORMAT_SHORT);var alarms=System.getDeviceSettings().alarmCount;
@@ -255,24 +255,24 @@ class CustomDelegate extends WatchUi.WatchFaceDelegate {
   face.touchPoint=x.format("%.0f")+"/"+y.format("%.0f");
   if(face.weatherPanel) { if(y>=394 && y<444) { return open("nativeWeather"); } face.closeWeather();return true; }
   TOUCH_ZONES
-  face.showNotice("P6: Frei "+face.touchPoint);
+  face.showNotice("P7: Frei "+face.touchPoint);
   return true;
  }
  function open(target) {
-  if(target=="weather") { face.showWeather();return true; }
-  if(target=="alarms") { face.showNotice("Alarme im Garmin-Uhrenmenue einstellen");return true; }
+  if(target.equals("weather")) { face.showWeather();return true; }
+  if(target.equals("alarms")) { face.showNotice("Alarme im Garmin-Uhrenmenue einstellen");return true; }
   var type=null;
-  if(target=="nativeWeather") { type=Complications.COMPLICATION_TYPE_CURRENT_WEATHER; }
-  else if(target=="steps") { type=Complications.COMPLICATION_TYPE_STEPS; }
-  else if(target=="battery") { type=Complications.COMPLICATION_TYPE_BATTERY; }
-  else if(target=="date") { type=Complications.COMPLICATION_TYPE_DATE; }
-  else if(target=="heart") { type=Complications.COMPLICATION_TYPE_HEART_RATE; }
+  if(target.equals("nativeWeather")) { type=Complications.COMPLICATION_TYPE_CURRENT_WEATHER; }
+  else if(target.equals("steps")) { type=Complications.COMPLICATION_TYPE_STEPS; }
+  else if(target.equals("battery")) { type=Complications.COMPLICATION_TYPE_BATTERY; }
+  else if(target.equals("date")) { type=Complications.COMPLICATION_TYPE_DATE; }
+  else if(target.equals("heart")) { type=Complications.COMPLICATION_TYPE_HEART_RATE; }
   if(type==null) { return false; }
   try {
-   face.showNotice("P6: Oeffne "+target);
+   face.showNotice("P7: Oeffne "+target);
    Complications.exitTo(new Complications.Id(type));return true;
   }
-  catch(error) { System.println("P6 touch "+target+": "+error.toString());face.showNotice("P6: Garmin-Ziel nicht verfuegbar");return true; }
+  catch(error) { System.println("P7 touch "+target+": "+error.toString());face.showNotice("P7: Garmin-Ziel nicht verfuegbar");return true; }
  }
 }
 '''.replace('INITIAL','\n'.join(initial+pixel_tables)).replace('BGCOLOR','0x'+d['background'][1:]).replace('RENDER','\n'.join(render)).replace('TOUCH_ZONES','\n'.join(f'if(x>={x1} && x<{x2} && y>={y1} && y<{y2}) {{ return open("{target}"); }}' for x1,y1,x2,y2,target in touch_zones(d)))
