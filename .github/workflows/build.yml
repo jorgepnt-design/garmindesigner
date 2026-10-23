@@ -130,7 +130,7 @@ jobs:
           ls dist/*.prg >/dev/null 2>&1 || exit 0
           gh release create "build-${GITHUB_SHA}" dist/*.prg dist/*.png dist/*.json \
             --title "PRG-Bau ${GITHUB_SHA::7}" \
-            --notes "Unveraenderlicher Bau aus ${GITHUB_SHA}. Editor-Dateien mit P4 und Baukennung verwenden."
+            --notes "Unveraenderlicher Bau aus ${GITHUB_SHA}. Editor-Dateien mit P5 und Baukennung verwenden."
           gh release delete neueste --yes --cleanup-tag || true
           gh release create neueste dist/*.prg dist/*.png dist/*.json \
             --title "Zifferblaetter – neueste Version" \

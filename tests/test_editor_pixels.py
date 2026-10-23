@@ -34,13 +34,13 @@ class PixelBuildTest(unittest.TestCase):
             self.assertEqual(im.size,(2,32));self.assertEqual(im.getpixel((0,0)),(232,205,145,255))
     def test_build_has_own_app_identity(self):
         d=self.design();a=identity(d);d['buildId']='ABCDEF13';b=identity(d)
-        self.assertNotEqual(a[2],b[2]);self.assertEqual(a[1],'Elegant P4-ABCDEF12')
+        self.assertNotEqual(a[2],b[2]);self.assertEqual(a[1],'Elegant P5-ABCDEF12')
     def test_packaged_prg_preview_and_receipt_match(self):
         with tempfile.TemporaryDirectory() as t:
             p=Path(t);out=p/'build/editor-elegant';build_editor(self.design(),out,'editor-elegant')
             dist=p/'dist';dist.mkdir();(dist/'editor-elegant-venux1.prg').write_bytes(b'compiled pixels')
             package(p/'build',dist)
-            r=json.loads((dist/'editor-elegant-P4-ABCDEF12-venux1.json').read_text())
+            r=json.loads((dist/'editor-elegant-P5-ABCDEF12-venux1.json').read_text())
             self.assertEqual((dist/r['file']).read_bytes(),b'compiled pixels')
             self.assertTrue((dist/r['preview']).is_file());self.assertEqual(r['dateFormat'],'ddd. DD.MM.')
 
@@ -64,7 +64,20 @@ class PixelBuildTest(unittest.TestCase):
             self.assertIn('Complications.exitTo(complication.complicationId)',code)
             self.assertNotIn('if(face.sleeping)',code)
             self.assertIn('face.sleeping=false;',code)
-            self.assertIn('P4: Feld hier ohne Verknuepfung',code)
+            self.assertIn('P5: Feld hier ohne Verknuepfung',code)
             self.assertIn('Complications.getComplication(new Complications.Id(type))',code)
+
+
+    def test_weather_details_open_locally_and_keep_native_launch_separate(self):
+        with tempfile.TemporaryDirectory() as t:
+            p=Path(t);generate(self.design(),p);code=(p/'source/Custom.mc').read_text()
+            self.assertIn('if(target=="weather") { face.showWeather();return true; }',code)
+            self.assertIn('if(target=="nativeWeather") { type=Complications.COMPLICATION_TYPE_CURRENT_WEATHER; }',code)
+            self.assertIn('drawWeather(dc);drawNotice(dc);return;',code)
+            self.assertIn('sleeping=true;weatherPanel=false;',code)
+            self.assertIn('face.closeWeather();return true;',code)
+            self.assertIn('Keine Garmin-Wetterdaten',code)
+            self.assertIn('current.observationTime',code)
+            self.assertIn('current.windSpeed*3.6',code)
 
 if __name__=='__main__':unittest.main()
