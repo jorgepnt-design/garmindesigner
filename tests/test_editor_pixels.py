@@ -34,13 +34,13 @@ class PixelBuildTest(unittest.TestCase):
             self.assertEqual(im.size,(2,32));self.assertEqual(im.getpixel((0,0)),(232,205,145,255))
     def test_build_has_own_app_identity(self):
         d=self.design();a=identity(d);d['buildId']='ABCDEF13';b=identity(d)
-        self.assertNotEqual(a[2],b[2]);self.assertEqual(a[1],'Elegant P3-ABCDEF12')
+        self.assertNotEqual(a[2],b[2]);self.assertEqual(a[1],'Elegant P4-ABCDEF12')
     def test_packaged_prg_preview_and_receipt_match(self):
         with tempfile.TemporaryDirectory() as t:
             p=Path(t);out=p/'build/editor-elegant';build_editor(self.design(),out,'editor-elegant')
             dist=p/'dist';dist.mkdir();(dist/'editor-elegant-venux1.prg').write_bytes(b'compiled pixels')
             package(p/'build',dist)
-            r=json.loads((dist/'editor-elegant-P3-ABCDEF12-venux1.json').read_text())
+            r=json.loads((dist/'editor-elegant-P4-ABCDEF12-venux1.json').read_text())
             self.assertEqual((dist/r['file']).read_bytes(),b'compiled pixels')
             self.assertTrue((dist/r['preview']).is_file());self.assertEqual(r['dateFormat'],'ddd. DD.MM.')
 
@@ -61,6 +61,10 @@ class PixelBuildTest(unittest.TestCase):
             # Generate a supported minutes field to verify the actual delegate wiring.
             p=Path(t);generate(self.design(),p);code=(p/'source/Custom.mc').read_text()
             self.assertIn('new CustomDelegate(face)',code);self.assertIn('function onPress(event)',code)
-            self.assertIn('Complications.exitTo(new Complications.Id(type))',code)
+            self.assertIn('Complications.exitTo(complication.complicationId)',code)
+            self.assertNotIn('if(face.sleeping)',code)
+            self.assertIn('face.sleeping=false;',code)
+            self.assertIn('P4: Feld hier ohne Verknuepfung',code)
+            self.assertIn('Complications.getComplication(new Complications.Id(type))',code)
 
 if __name__=='__main__':unittest.main()

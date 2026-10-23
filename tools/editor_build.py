@@ -85,7 +85,7 @@ def rendered_image(asset):
     if im.width>16000 or im.height>486 or im.width*im.height>4000000:raise ValueError('Rendered asset dimensions too large')
     return im.convert('RGBA')
 
-RENDERER_VERSION = "P3"
+RENDERER_VERSION = "P4"
 def identity(d):
     build_id = str(d.get("buildId") or hashlib.sha256(json.dumps(d,sort_keys=True).encode()).hexdigest()[:8]).upper()
     if not re.fullmatch("[A-F0-9]{8}",build_id):raise ValueError("Invalid build identifier")
@@ -170,6 +170,7 @@ class CustomApp extends Application.AppBase {
 class CustomFace extends WatchUi.WatchFace {
  var fonts = {}; var images = {}; var pixels = {}; var sleeping = false;
  var noticeUntil=0;var noticeText="";
+ var displayWidth=448;var displayHeight=486;
  function initialize() { WatchFace.initialize(); INITIAL }
  function drawPixels(dc,table,value,x,y) {
   for(var k=0;k<value.length();k+=1) {
@@ -180,6 +181,7 @@ class CustomFace extends WatchUi.WatchFace {
  function onEnterSleep() { sleeping=true; }
  function onExitSleep() { sleeping=false; WatchUi.requestUpdate(); }
  function onUpdate(dc) {
+ displayWidth=dc.getWidth();displayHeight=dc.getHeight();
  dc.setColor(Graphics.COLOR_WHITE,BGCOLOR);dc.clear();
  var clock=System.getClockTime();var hh=clock.hour.format("%02d");var mm=clock.min.format("%02d");
  if(sleeping) { dc.setColor(0x666666,Graphics.COLOR_BLACK);dc.drawText(224,220,Graphics.FONT_NUMBER_MEDIUM,hh+":"+mm,Graphics.TEXT_JUSTIFY_CENTER);return; }
@@ -196,10 +198,11 @@ class CustomDelegate extends WatchUi.WatchFaceDelegate {
  var face;
  function initialize(view) { WatchFaceDelegate.initialize();face=view; }
  function onPress(event) {
-  if(face.sleeping) { return false; }
-  var p=event.getCoordinates();var x=p[0];var y=p[1];
+  face.sleeping=false;
+  var p=event.getCoordinates();var x=p[0]*448.0/face.displayWidth;var y=p[1]*486.0/face.displayHeight;
   TOUCH_ZONES
-  return false;
+  face.showNotice("P4: Feld hier ohne Verknuepfung");
+  return true;
  }
  function open(target) {
   if(target=="alarms") { face.showNotice("Alarme im Garmin-Uhrenmenue einstellen");return true; }
@@ -210,8 +213,12 @@ class CustomDelegate extends WatchUi.WatchFaceDelegate {
   else if(target=="date") { type=Complications.COMPLICATION_TYPE_DATE; }
   else if(target=="heart") { type=Complications.COMPLICATION_TYPE_HEART_RATE; }
   if(type==null) { return false; }
-  try { Complications.exitTo(new Complications.Id(type));return true; }
-  catch(error) { face.showNotice("Diese Garmin-Ansicht ist nicht verfuegbar");return true; }
+  try {
+   var complication=Complications.getComplication(new Complications.Id(type));
+   face.showNotice("P4: Oeffne "+target);
+   Complications.exitTo(complication.complicationId);return true;
+  }
+  catch(error) { System.println("P4 touch "+target+": "+error.toString());face.showNotice("P4: Garmin-Ziel nicht verfuegbar");return true; }
  }
 }
 '''.replace('INITIAL','\n'.join(initial+pixel_tables)).replace('BGCOLOR','0x'+d['background'][1:]).replace('RENDER','\n'.join(render)).replace('TOUCH_ZONES','\n'.join(f'if(x>={x1} && x<{x2} && y>={y1} && y<{y2}) {{ return open("{target}"); }}' for x1,y1,x2,y2,target in touch_zones(d)))
