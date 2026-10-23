@@ -57,8 +57,9 @@ module Data {
     }
 
     function date() as String {
-        var i = info();
-        return (i.day_of_week as String).toUpper() + " " + i.day + ". " + (i.month as String).toUpper();
+        var i = Gregorian.info(Time.now(), Time.FORMAT_SHORT);
+        var weekdays = ["So.", "Mo.", "Di.", "Mi.", "Do.", "Fr.", "Sa."];
+        return weekdays[(i.day_of_week as Number) - 1] + " " + i.day.format("%02d") + "." + (i.month as Number).format("%02d") + ".";
     }
 
     function battery() as String {

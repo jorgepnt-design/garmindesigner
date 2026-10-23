@@ -13,11 +13,11 @@ from package_editor import package
 
 class PixelBuildTest(unittest.TestCase):
     def design(self):
-        image=Image.new('RGBA',(24,32),'white')
+        image=Image.new('RGBA',(50,32),'white')
         data=io.BytesIO();image.save(data,format='PNG')
         return dict(version=1,name='Elegant',background='#000000',buildId='ABCDEF12',renderVersion=1,
             elements=[dict(type='minutes',font='original-elegant',size=32,x=188,y=136,color='#e8cd91')],
-            renderAssets={'0':dict(kind='font',height=32,width=24,glyphs={ch:dict(x=i*2,w=2) for i,ch in enumerate('0123456789:.')},data='data:image/png;base64,'+base64.b64encode(data.getvalue()).decode())})
+            renderAssets={'0':dict(kind='font',height=32,width=50,glyphs={ch:dict(x=i*2,w=2) for i,ch in enumerate('0123456789:. SoMDiFra')},data='data:image/png;base64,'+base64.b64encode(data.getvalue()).decode())})
     def test_required_colon_cannot_silently_disappear(self):
         d=self.design();del d['renderAssets']['0']['glyphs'][':']
         with tempfile.TemporaryDirectory() as t:
@@ -27,7 +27,7 @@ class PixelBuildTest(unittest.TestCase):
             p=Path(t);d=self.design();d['elements'].append(dict(type='date',font='original-date',size=32,x=28,y=44,color='#e8cd91'));d['renderAssets']['1']=d['renderAssets']['0'];generate(d,p)
             code=(p/'source/Custom.mc').read_text()
             self.assertIn('":"+mm,188,136',code)
-            self.assertIn('date.day.format("%02d") + "." + date.month.format("%02d") + "." + date.year.toString()',code)
+            self.assertIn('["So.","Mo.","Di.","Mi.","Do.","Fr.","Sa."][date.day_of_week-1] + " " + date.day.format("%02d") + "." + date.month.format("%02d") + "."',code)
             self.assertNotIn('WECKER',code)
             self.assertFalse(list((p/'resources').glob('*.fnt')))
             im=Image.open(p/'resources/Glyph0_10.png')
@@ -42,6 +42,6 @@ class PixelBuildTest(unittest.TestCase):
             package(p/'build',dist)
             r=json.loads((dist/'editor-elegant-P2-ABCDEF12-venux1.json').read_text())
             self.assertEqual((dist/r['file']).read_bytes(),b'compiled pixels')
-            self.assertTrue((dist/r['preview']).is_file());self.assertEqual(r['dateFormat'],'DD.MM.YYYY')
+            self.assertTrue((dist/r['preview']).is_file());self.assertEqual(r['dateFormat'],'ddd. DD.MM.')
 
 if __name__=='__main__':unittest.main()

@@ -95,7 +95,7 @@ def identity(d):
 
 def generate(d,out):
     validate(d);build_id,app_name,app_id=identity(d);out.mkdir(parents=True,exist_ok=True);res=out/'resources';res.mkdir(exist_ok=True);src=out/'source';src.mkdir(exist_ok=True)
-    resources=[];initial=[];render=[];fontids={};pixel_tables=[];chars='0123456789:.-% °CkmAKTIVUS'
+    resources=[];initial=[];render=[];fontids={};pixel_tables=[];chars='0123456789:.-% °CkmAKTIVUSSoMDiFra'
     for i,e in enumerate(d['elements']):
         if not e.get('visible',True):continue
         x,y=round(e['x']),round(e['y']);kind=e['type']
@@ -108,7 +108,7 @@ def generate(d,out):
                 if type(bx)!=int or type(by)!=int or not 0<=bx<448 or not 0<=by<486 or im.width>448 or im.height>486:raise ValueError('Invalid bitmap bounds')
                 im.save(res/f'Exact{i}.png');resources.append(f'<bitmap id="Exact{i}" filename="Exact{i}.png" packingFormat="png" automaticPalette="false" dithering="none"/>');initial.append(f'images[{i}] = WatchUi.loadResource(Rez.Drawables.Exact{i});');render.append(f'dc.drawBitmap({bx},{by},images[{i}]);');continue
             if asset.get('kind')!='font' or im.height!=asset.get('height'):raise ValueError('Invalid font pixel asset')
-            required={'time':'0123456789:','hours':'0123456789','minutes':'0123456789:','seconds':'0123456789:','date':'0123456789.','battery':'0123456789%','temperature':'0123456789-°C','distance':'0123456789.-','alarmCount':'0123456789','alarmStatus':'AKTIVUS'}.get(kind,'')
+            required={'time':'0123456789:','hours':'0123456789','minutes':'0123456789:','seconds':'0123456789:','date':'0123456789. SoMDiFra','battery':'0123456789%','temperature':'0123456789-°C','distance':'0123456789.-','alarmCount':'0123456789','alarmStatus':'AKTIVUS'}.get(kind,'')
             missing=set(required)-set(asset.get('glyphs',{}))
             if missing:raise ValueError('Missing glyphs for '+kind+': '+''.join(sorted(missing)))
             table=[]
@@ -123,7 +123,7 @@ def generate(d,out):
         key=(e['font'],round(e['size']))
         if asset is None and key not in fontids:
             name='Font'+str(len(fontids));fontids[key]=name;font_resource(res,name,*key,chars);resources.append(f'<font id="{name}" filename="{name}.fnt" antialias="true"/>');initial.append(f'fonts[{json.dumps(name)}] = WatchUi.loadResource(Rez.Fonts.{name});')
-        name=fontids.get(key);expr={'time':'hh + ":" + mm','hours':'hh','minutes':'":"+mm','seconds':'":" + clock.sec.format("%02d")','date':'date.day.format("%02d") + "." + date.month.format("%02d") + "." + date.year.toString()','battery':'System.getSystemStats().battery.format("%.0f") + "%"','temperature':'temp','distance':'km','alarmCount':'alarms.toString()','alarmStatus':'(alarms > 0 ? "AKTIV" : "AUS")'}[kind]
+        name=fontids.get(key);expr={'time':'hh + ":" + mm','hours':'hh','minutes':'":"+mm','seconds':'":" + clock.sec.format("%02d")','date':'["So.","Mo.","Di.","Mi.","Do.","Fr.","Sa."][date.day_of_week-1] + " " + date.day.format("%02d") + "." + date.month.format("%02d") + "."','battery':'System.getSystemStats().battery.format("%.0f") + "%"','temperature':'temp','distance':'km','alarmCount':'alarms.toString()','alarmStatus':'(alarms > 0 ? "AKTIV" : "AUS")'}[kind]
         if asset is not None:render.append(f'drawPixels(dc,pixels[{i}],{expr},{x},{y});')
         else:render.append(f'dc.setColor(0x{e["color"][1:]},Graphics.COLOR_TRANSPARENT); dc.drawText({x},{y},fonts[{json.dumps(name)}],{expr},Graphics.TEXT_JUSTIFY_LEFT);')
     fontxml=[s for s in resources if s.startswith('<font')];bitmaps=[s for s in resources if s.startswith('<bitmap')]

@@ -5,7 +5,7 @@
     "seconds": { "chars": "digits", "sample": "37", "label": "Sekunden" },
     "time": { "chars": "digits:", "sample": "10:42", "label": "Uhrzeit" },
     "ampm": { "chars": "AMP", "sample": "AM", "label": "AM/PM" },
-    "date": { "chars": "upper", "sample": "MI 22. OKT", "label": "Datum" },
+    "date": { "chars": "0123456789. SoMDiFra", "sample": "Fr. 23.10.", "label": "Datum" },
     "weekday": { "chars": "upper", "sample": "MI", "label": "Wochentag" },
     "day": { "chars": "digits", "sample": "22", "label": "Tag" },
     "month": { "chars": "upper", "sample": "OKT", "label": "Monat" },
