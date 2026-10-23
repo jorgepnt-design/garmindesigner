@@ -85,7 +85,7 @@ def rendered_image(asset):
     if im.width>16000 or im.height>486 or im.width*im.height>4000000:raise ValueError('Rendered asset dimensions too large')
     return im.convert('RGBA')
 
-RENDERER_VERSION = "P7"
+RENDERER_VERSION = "P8"
 def identity(d):
     build_id = str(d.get("buildId") or hashlib.sha256(json.dumps(d,sort_keys=True).encode()).hexdigest()[:8]).upper()
     if not re.fullmatch("[A-F0-9]{8}",build_id):raise ValueError("Invalid build identifier")
@@ -183,13 +183,22 @@ class CustomFace extends WatchUi.WatchFace {
  function onExitSleep() { sleeping=false;if(weatherPanel) { weatherUntil=0; } WatchUi.requestUpdate(); }
 
  function showWeather() {
-  weatherPanel=true;weatherUntil=0;showNotice("P7: WETTER "+touchPoint);
+  weatherPanel=true;weatherUntil=0;noticeText="";WatchUi.requestUpdate();
  }
  function closeWeather() { weatherPanel=false;WatchUi.requestUpdate(); }
  function weatherValue(value,unit) { return value==null ? "--" : value.format("%.0f")+unit; }
+ function currentWeather() { try { return Weather.getCurrentConditions(); } catch(error) { return null; } }
  function weatherRow(dc,y,label,value) {
-  dc.setColor(0xaaaaaa,Graphics.COLOR_TRANSPARENT);dc.drawText(28,y,Graphics.FONT_SMALL,label,Graphics.TEXT_JUSTIFY_LEFT);
-  dc.setColor(Graphics.COLOR_WHITE,Graphics.COLOR_TRANSPARENT);dc.drawText(420,y,Graphics.FONT_SMALL,value,Graphics.TEXT_JUSTIFY_RIGHT);
+  dc.setColor(0xaaaaaa,Graphics.COLOR_TRANSPARENT);dc.drawText(28,y,Graphics.FONT_XTINY,label,Graphics.TEXT_JUSTIFY_LEFT);
+  dc.setColor(Graphics.COLOR_WHITE,Graphics.COLOR_TRANSPARENT);dc.drawText(420,y,Graphics.FONT_XTINY,value,Graphics.TEXT_JUSTIFY_RIGHT);
+ }
+ function weatherLayout() {
+  var h=Graphics.getFontHeight(Graphics.FONT_XTINY);
+  var temperature=16+h+4;
+  var rows=temperature+Graphics.getFontHeight(Graphics.FONT_NUMBER_MILD)+8;
+  var step=h+4;var stamp=rows+4*step+4;var divider=stamp+h+8;
+  var nativeY=divider+5;var back=nativeY+h+3;
+  return { :header=>16,:temperature=>temperature,:rows=>rows,:step=>step,:stamp=>stamp,:divider=>divider,:nativeY=>nativeY,:back=>back };
  }
  function drawNotice(dc) {
   if(noticeText.length()>0 && !sleeping) {
@@ -199,31 +208,32 @@ class CustomFace extends WatchUi.WatchFace {
   }
  }
  function drawWeather(dc) {
+  var layout=weatherLayout();
   dc.setColor(Graphics.COLOR_WHITE,Graphics.COLOR_BLACK);dc.clear();
-  dc.drawText(28,24,Graphics.FONT_SMALL,"WETTER",Graphics.TEXT_JUSTIFY_LEFT);
-  dc.setColor(0xaaaaaa,Graphics.COLOR_TRANSPARENT);dc.drawText(420,28,Graphics.FONT_XTINY,"P7",Graphics.TEXT_JUSTIFY_RIGHT);
-  var current=null;try { current=Weather.getCurrentConditions(); } catch(error) {}
+  dc.drawText(28,layout[:header],Graphics.FONT_XTINY,"WETTER",Graphics.TEXT_JUSTIFY_LEFT);
+  dc.setColor(0xaaaaaa,Graphics.COLOR_TRANSPARENT);dc.drawText(420,layout[:header],Graphics.FONT_XTINY,"P8",Graphics.TEXT_JUSTIFY_RIGHT);
+  var current=currentWeather();
   if(current==null) {
    dc.setColor(Graphics.COLOR_WHITE,Graphics.COLOR_TRANSPARENT);
    dc.drawText(224,155,Graphics.FONT_XTINY,"Keine Garmin-Wetterdaten",Graphics.TEXT_JUSTIFY_CENTER);
    dc.drawText(224,195,Graphics.FONT_XTINY,"Garmin Connect synchronisieren",Graphics.TEXT_JUSTIFY_CENTER);
   } else {
    dc.setColor(Graphics.COLOR_WHITE,Graphics.COLOR_TRANSPARENT);
-   dc.drawText(224,70,Graphics.FONT_NUMBER_MEDIUM,weatherValue(current.temperature,"°C"),Graphics.TEXT_JUSTIFY_CENTER);
-   weatherRow(dc,157,"Gefuehlt",weatherValue(current.feelsLikeTemperature,"°C"));
-   weatherRow(dc,202,"Min / Max",weatherValue(current.lowTemperature,"°")+" / "+weatherValue(current.highTemperature,"°"));
-   weatherRow(dc,247,"Luftfeuchte",weatherValue(current.relativeHumidity,"%"));
-   weatherRow(dc,292,"Wind",current.windSpeed==null ? "--" : (current.windSpeed*3.6).format("%.0f")+" km/h");
+   dc.drawText(224,layout[:temperature],Graphics.FONT_NUMBER_MILD,weatherValue(current.temperature,"°C"),Graphics.TEXT_JUSTIFY_CENTER);
+   weatherRow(dc,layout[:rows],"Gefuehlt",weatherValue(current.feelsLikeTemperature,"°C"));
+   weatherRow(dc,layout[:rows]+layout[:step],"Min / Max",weatherValue(current.lowTemperature,"°")+" / "+weatherValue(current.highTemperature,"°"));
+   weatherRow(dc,layout[:rows]+2*layout[:step],"Luftfeuchte",weatherValue(current.relativeHumidity,"%"));
+   weatherRow(dc,layout[:rows]+3*layout[:step],"Wind",current.windSpeed==null ? "--" : (current.windSpeed*3.6).format("%.0f")+" km/h");
    var stamp="Stand unbekannt";
    if(current.observationTime!=null) {
     var info=Gregorian.info(current.observationTime,Time.FORMAT_SHORT);
     stamp="Stand "+info.day.format("%02d")+"."+info.month.format("%02d")+". "+info.hour.format("%02d")+":"+info.min.format("%02d");
    }
-   dc.setColor(0xaaaaaa,Graphics.COLOR_TRANSPARENT);dc.drawText(224,352,Graphics.FONT_XTINY,stamp,Graphics.TEXT_JUSTIFY_CENTER);
+   dc.setColor(0xaaaaaa,Graphics.COLOR_TRANSPARENT);dc.drawText(224,layout[:stamp],Graphics.FONT_XTINY,stamp,Graphics.TEXT_JUSTIFY_CENTER);
   }
-  dc.setColor(0x555555,Graphics.COLOR_TRANSPARENT);dc.drawLine(28,394,420,394);
-  dc.setColor(Graphics.COLOR_WHITE,Graphics.COLOR_TRANSPARENT);dc.drawText(224,405,Graphics.FONT_XTINY,"Garmin-Wetter oeffnen: halten",Graphics.TEXT_JUSTIFY_CENTER);
-  dc.setColor(0xaaaaaa,Graphics.COLOR_TRANSPARENT);dc.drawText(224,448,Graphics.FONT_XTINY,"Oben halten: zurueck",Graphics.TEXT_JUSTIFY_CENTER);
+  dc.setColor(0x555555,Graphics.COLOR_TRANSPARENT);dc.drawLine(28,layout[:divider],420,layout[:divider]);
+  dc.setColor(Graphics.COLOR_WHITE,Graphics.COLOR_TRANSPARENT);dc.drawText(224,layout[:nativeY],Graphics.FONT_XTINY,"Garmin-Wetter oeffnen: halten",Graphics.TEXT_JUSTIFY_CENTER);
+  dc.setColor(0xaaaaaa,Graphics.COLOR_TRANSPARENT);dc.drawText(224,layout[:back],Graphics.FONT_XTINY,"Oben halten: zurueck",Graphics.TEXT_JUSTIFY_CENTER);
  }
 
  function onUpdate(dc) {
@@ -235,7 +245,7 @@ class CustomFace extends WatchUi.WatchFace {
   if(weatherUntil==0) { weatherUntil=System.getTimer()+30000; }
   if(System.getTimer()<weatherUntil) {
    try { drawWeather(dc);drawNotice(dc);return; }
-   catch(error) { weatherPanel=false;showNotice("P7: Wetterfehler");System.println("P7 weather: "+error.toString()); }
+   catch(error) { weatherPanel=false;showNotice("P8: Wetterfehler");System.println("P8 weather: "+error.toString()); }
   } else { weatherPanel=false; }
  }
  var date=Gregorian.info(Time.now(),Time.FORMAT_SHORT);var alarms=System.getDeviceSettings().alarmCount;
@@ -253,9 +263,9 @@ class CustomDelegate extends WatchUi.WatchFaceDelegate {
  function onPress(event) {
   var p=event.getCoordinates();var x=p[0]*448.0/face.displayWidth;var y=p[1]*486.0/face.displayHeight;
   face.touchPoint=x.format("%.0f")+"/"+y.format("%.0f");
-  if(face.weatherPanel) { if(y>=394 && y<444) { return open("nativeWeather"); } face.closeWeather();return true; }
+  if(face.weatherPanel) { var layout=face.weatherLayout();if(y>=layout[:nativeY]-4 && y<layout[:back]-2) { return open("nativeWeather"); } face.closeWeather();return true; }
   TOUCH_ZONES
-  face.showNotice("P7: Frei "+face.touchPoint);
+  face.showNotice("P8: Frei "+face.touchPoint);
   return true;
  }
  function open(target) {
@@ -269,14 +279,14 @@ class CustomDelegate extends WatchUi.WatchFaceDelegate {
   else if(target.equals("heart")) { type=Complications.COMPLICATION_TYPE_HEART_RATE; }
   if(type==null) { return false; }
   try {
-   face.showNotice("P7: Oeffne "+target);
+   face.showNotice("P8: Oeffne "+target);
    Complications.exitTo(new Complications.Id(type));return true;
   }
-  catch(error) { System.println("P7 touch "+target+": "+error.toString());face.showNotice("P7: Garmin-Ziel nicht verfuegbar");return true; }
+  catch(error) { System.println("P8 touch "+target+": "+error.toString());face.showNotice("P8: Garmin-Ziel nicht verfuegbar");return true; }
  }
 }
 '''.replace('INITIAL','\n'.join(initial+pixel_tables)).replace('BGCOLOR','0x'+d['background'][1:]).replace('RENDER','\n'.join(render)).replace('TOUCH_ZONES','\n'.join(f'if(x>={x1} && x<{x2} && y>={y1} && y<{y2}) {{ return open("{target}"); }}' for x1,y1,x2,y2,target in touch_zones(d)))
-    (src/'Custom.mc').write_text(code);(out/'design.json').write_text(json.dumps(d,ensure_ascii=False,indent=2));return out
+    (src/'Custom.mc').write_text(code,encoding='utf-8');(out/'design.json').write_text(json.dumps(d,ensure_ascii=False,indent=2));return out
 
 def main():
     p=argparse.ArgumentParser();p.add_argument('design',type=Path);p.add_argument('--sdk',type=Path);p.add_argument('--key',type=Path);p.add_argument('--generate-only',action='store_true');a=p.parse_args()
