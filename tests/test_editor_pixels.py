@@ -34,13 +34,13 @@ class PixelBuildTest(unittest.TestCase):
             self.assertEqual(im.size,(2,32));self.assertEqual(im.getpixel((0,0)),(232,205,145,255))
     def test_build_has_own_app_identity(self):
         d=self.design();a=identity(d);d['buildId']='ABCDEF13';b=identity(d)
-        self.assertNotEqual(a[2],b[2]);self.assertEqual(a[1],'Elegant P5-ABCDEF12')
+        self.assertNotEqual(a[2],b[2]);self.assertEqual(a[1],'Elegant P6-ABCDEF12')
     def test_packaged_prg_preview_and_receipt_match(self):
         with tempfile.TemporaryDirectory() as t:
             p=Path(t);out=p/'build/editor-elegant';build_editor(self.design(),out,'editor-elegant')
             dist=p/'dist';dist.mkdir();(dist/'editor-elegant-venux1.prg').write_bytes(b'compiled pixels')
             package(p/'build',dist)
-            r=json.loads((dist/'editor-elegant-P5-ABCDEF12-venux1.json').read_text())
+            r=json.loads((dist/'editor-elegant-P6-ABCDEF12-venux1.json').read_text())
             self.assertEqual((dist/r['file']).read_bytes(),b'compiled pixels')
             self.assertTrue((dist/r['preview']).is_file());self.assertEqual(r['dateFormat'],'ddd. DD.MM.')
 
@@ -61,11 +61,11 @@ class PixelBuildTest(unittest.TestCase):
             # Generate a supported minutes field to verify the actual delegate wiring.
             p=Path(t);generate(self.design(),p);code=(p/'source/Custom.mc').read_text()
             self.assertIn('new CustomDelegate(face)',code);self.assertIn('function onPress(event)',code)
-            self.assertIn('Complications.exitTo(complication.complicationId)',code)
+            self.assertIn('Complications.exitTo(new Complications.Id(type))',code)
             self.assertNotIn('if(face.sleeping)',code)
-            self.assertIn('face.sleeping=false;',code)
-            self.assertIn('P5: Feld hier ohne Verknuepfung',code)
-            self.assertIn('Complications.getComplication(new Complications.Id(type))',code)
+            self.assertNotIn('face.sleeping=false;',code)
+            self.assertIn('P6: Frei ',code)
+            self.assertNotIn('Complications.getComplication(',code)
 
 
     def test_weather_details_open_locally_and_keep_native_launch_separate(self):
@@ -74,10 +74,17 @@ class PixelBuildTest(unittest.TestCase):
             self.assertIn('if(target=="weather") { face.showWeather();return true; }',code)
             self.assertIn('if(target=="nativeWeather") { type=Complications.COMPLICATION_TYPE_CURRENT_WEATHER; }',code)
             self.assertIn('drawWeather(dc);drawNotice(dc);return;',code)
-            self.assertIn('sleeping=true;weatherPanel=false;',code)
+            self.assertIn('function onEnterSleep() { sleeping=true; }',code)
             self.assertIn('face.closeWeather();return true;',code)
             self.assertIn('Keine Garmin-Wetterdaten',code)
             self.assertIn('current.observationTime',code)
             self.assertIn('current.windSpeed*3.6',code)
+
+    def test_portugal_weather_symbol_value_and_label_route_to_weather(self):
+        d=json.loads((Path(__file__).resolve().parents[1]/'designs/editor-portugal-kopie.json').read_text(encoding='utf-8'))
+        zones=touch_zones(d)
+        for x,y in [(82,352),(80,404),(80,441)]:
+            target=next((t for x1,y1,x2,y2,t in zones if x1<=x<x2 and y1<=y<y2),None)
+            self.assertEqual(target,'weather',(x,y))
 
 if __name__=='__main__':unittest.main()

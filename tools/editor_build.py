@@ -85,7 +85,7 @@ def rendered_image(asset):
     if im.width>16000 or im.height>486 or im.width*im.height>4000000:raise ValueError('Rendered asset dimensions too large')
     return im.convert('RGBA')
 
-RENDERER_VERSION = "P5"
+RENDERER_VERSION = "P6"
 def identity(d):
     build_id = str(d.get("buildId") or hashlib.sha256(json.dumps(d,sort_keys=True).encode()).hexdigest()[:8]).upper()
     if not re.fullmatch("[A-F0-9]{8}",build_id):raise ValueError("Invalid build identifier")
@@ -169,7 +169,7 @@ class CustomApp extends Application.AppBase {
 }
 class CustomFace extends WatchUi.WatchFace {
  var fonts = {}; var images = {}; var pixels = {}; var sleeping = false;
- var noticeUntil=0;var noticeText="";
+ var noticeUntil=0;var noticeText="";var touchPoint="";
  var displayWidth=448;var displayHeight=486;
  var weatherPanel=false;var weatherUntil=0;
  function initialize() { WatchFace.initialize(); INITIAL }
@@ -178,12 +178,12 @@ class CustomFace extends WatchUi.WatchFace {
    var ch=value.substring(k,k+1);if(table.hasKey(ch)) { var g=table[ch];dc.drawBitmap(x,y,WatchUi.loadResource(g[0]));x+=g[1]; }
   }
  }
- function showNotice(value) { noticeText=value;noticeUntil=System.getTimer()+5000;WatchUi.requestUpdate(); }
- function onEnterSleep() { sleeping=true;weatherPanel=false; }
- function onExitSleep() { sleeping=false; WatchUi.requestUpdate(); }
+ function showNotice(value) { noticeText=value;noticeUntil=0;WatchUi.requestUpdate(); }
+ function onEnterSleep() { sleeping=true; }
+ function onExitSleep() { sleeping=false;if(weatherPanel) { weatherUntil=0; } WatchUi.requestUpdate(); }
 
  function showWeather() {
-  weatherPanel=true;weatherUntil=System.getTimer()+30000;sleeping=false;noticeUntil=0;WatchUi.requestUpdate();
+  weatherPanel=true;weatherUntil=0;showNotice("P6: WETTER "+touchPoint);
  }
  function closeWeather() { weatherPanel=false;WatchUi.requestUpdate(); }
  function weatherValue(value,unit) { return value==null ? "--" : value.format("%.0f")+unit; }
@@ -192,12 +192,16 @@ class CustomFace extends WatchUi.WatchFace {
   dc.setColor(Graphics.COLOR_WHITE,Graphics.COLOR_TRANSPARENT);dc.drawText(420,y,Graphics.FONT_SMALL,value,Graphics.TEXT_JUSTIFY_RIGHT);
  }
  function drawNotice(dc) {
-  if(System.getTimer()<noticeUntil) { dc.setColor(Graphics.COLOR_BLACK,Graphics.COLOR_BLACK);dc.fillRectangle(10,205,428,70);dc.setColor(Graphics.COLOR_WHITE,Graphics.COLOR_TRANSPARENT);dc.drawText(224,220,Graphics.FONT_XTINY,noticeText,Graphics.TEXT_JUSTIFY_CENTER); }
+  if(noticeText!="" && !sleeping) {
+   if(noticeUntil==0) { noticeUntil=System.getTimer()+15000; }
+   if(System.getTimer()<noticeUntil) { dc.setColor(Graphics.COLOR_BLACK,Graphics.COLOR_BLACK);dc.fillRectangle(10,205,428,70);dc.setColor(Graphics.COLOR_WHITE,Graphics.COLOR_TRANSPARENT);dc.drawText(224,220,Graphics.FONT_XTINY,noticeText,Graphics.TEXT_JUSTIFY_CENTER); }
+   else { noticeText=""; }
+  }
  }
  function drawWeather(dc) {
   dc.setColor(Graphics.COLOR_WHITE,Graphics.COLOR_BLACK);dc.clear();
   dc.drawText(28,24,Graphics.FONT_SMALL,"WETTER",Graphics.TEXT_JUSTIFY_LEFT);
-  dc.setColor(0xaaaaaa,Graphics.COLOR_TRANSPARENT);dc.drawText(420,28,Graphics.FONT_XTINY,"P5",Graphics.TEXT_JUSTIFY_RIGHT);
+  dc.setColor(0xaaaaaa,Graphics.COLOR_TRANSPARENT);dc.drawText(420,28,Graphics.FONT_XTINY,"P6",Graphics.TEXT_JUSTIFY_RIGHT);
   var current=null;try { current=Weather.getCurrentConditions(); } catch(error) {}
   if(current==null) {
    dc.setColor(Graphics.COLOR_WHITE,Graphics.COLOR_TRANSPARENT);
@@ -227,7 +231,13 @@ class CustomFace extends WatchUi.WatchFace {
  dc.setColor(Graphics.COLOR_WHITE,BGCOLOR);dc.clear();
  var clock=System.getClockTime();var hh=clock.hour.format("%02d");var mm=clock.min.format("%02d");
  if(sleeping) { dc.setColor(0x666666,Graphics.COLOR_BLACK);dc.drawText(224,220,Graphics.FONT_NUMBER_MEDIUM,hh+":"+mm,Graphics.TEXT_JUSTIFY_CENTER);return; }
- if(weatherPanel) { if(System.getTimer()<weatherUntil) { drawWeather(dc);drawNotice(dc);return; } weatherPanel=false; }
+ if(weatherPanel) {
+  if(weatherUntil==0) { weatherUntil=System.getTimer()+30000; }
+  if(System.getTimer()<weatherUntil) {
+   try { drawWeather(dc);drawNotice(dc);return; }
+   catch(error) { weatherPanel=false;showNotice("P6: Wetterfehler");System.println("P6 weather: "+error.toString()); }
+  } else { weatherPanel=false; }
+ }
  var date=Gregorian.info(Time.now(),Time.FORMAT_SHORT);var alarms=System.getDeviceSettings().alarmCount;
  var temp="--";var weather=Weather.getCurrentConditions();
  if(weather!=null && weather.temperature!=null) { temp=weather.temperature.format("%.0f")+"°C"; }
@@ -241,11 +251,11 @@ class CustomDelegate extends WatchUi.WatchFaceDelegate {
  var face;
  function initialize(view) { WatchFaceDelegate.initialize();face=view; }
  function onPress(event) {
-  face.sleeping=false;
   var p=event.getCoordinates();var x=p[0]*448.0/face.displayWidth;var y=p[1]*486.0/face.displayHeight;
+  face.touchPoint=x.format("%.0f")+"/"+y.format("%.0f");
   if(face.weatherPanel) { if(y>=394 && y<444) { return open("nativeWeather"); } face.closeWeather();return true; }
   TOUCH_ZONES
-  face.showNotice("P5: Feld hier ohne Verknuepfung");
+  face.showNotice("P6: Frei "+face.touchPoint);
   return true;
  }
  function open(target) {
@@ -259,11 +269,10 @@ class CustomDelegate extends WatchUi.WatchFaceDelegate {
   else if(target=="heart") { type=Complications.COMPLICATION_TYPE_HEART_RATE; }
   if(type==null) { return false; }
   try {
-   var complication=Complications.getComplication(new Complications.Id(type));
-   face.showNotice("P5: Oeffne "+target);
-   Complications.exitTo(complication.complicationId);return true;
+   face.showNotice("P6: Oeffne "+target);
+   Complications.exitTo(new Complications.Id(type));return true;
   }
-  catch(error) { System.println("P5 touch "+target+": "+error.toString());face.showNotice("P5: Garmin-Ziel nicht verfuegbar");return true; }
+  catch(error) { System.println("P6 touch "+target+": "+error.toString());face.showNotice("P6: Garmin-Ziel nicht verfuegbar");return true; }
  }
 }
 '''.replace('INITIAL','\n'.join(initial+pixel_tables)).replace('BGCOLOR','0x'+d['background'][1:]).replace('RENDER','\n'.join(render)).replace('TOUCH_ZONES','\n'.join(f'if(x>={x1} && x<{x2} && y>={y1} && y<{y2}) {{ return open("{target}"); }}' for x1,y1,x2,y2,target in touch_zones(d)))
