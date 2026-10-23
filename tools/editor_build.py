@@ -85,7 +85,7 @@ def rendered_image(asset):
     if im.width>16000 or im.height>486 or im.width*im.height>4000000:raise ValueError('Rendered asset dimensions too large')
     return im.convert('RGBA')
 
-RENDERER_VERSION = "P8"
+RENDERER_VERSION = "P9"
 def identity(d):
     build_id = str(d.get("buildId") or hashlib.sha256(json.dumps(d,sort_keys=True).encode()).hexdigest()[:8]).upper()
     if not re.fullmatch("[A-F0-9]{8}",build_id):raise ValueError("Invalid build identifier")
@@ -169,92 +169,28 @@ class CustomApp extends Application.AppBase {
 }
 class CustomFace extends WatchUi.WatchFace {
  var fonts = {}; var images = {}; var pixels = {}; var sleeping = false;
- var noticeUntil=0;var noticeText="";var touchPoint="";
  var displayWidth=448;var displayHeight=486;
- var weatherPanel=false;var weatherUntil=0;
  function initialize() { WatchFace.initialize(); INITIAL }
  function drawPixels(dc,table,value,x,y) {
   for(var k=0;k<value.length();k+=1) {
    var ch=value.substring(k,k+1);if(table.hasKey(ch)) { var g=table[ch];dc.drawBitmap(x,y,WatchUi.loadResource(g[0]));x+=g[1]; }
   }
  }
- function showNotice(value) { noticeText=value;noticeUntil=0;WatchUi.requestUpdate(); }
  function onEnterSleep() { sleeping=true; }
- function onExitSleep() { sleeping=false;if(weatherPanel) { weatherUntil=0; } WatchUi.requestUpdate(); }
-
- function showWeather() {
-  weatherPanel=true;weatherUntil=0;noticeText="";WatchUi.requestUpdate();
- }
- function closeWeather() { weatherPanel=false;WatchUi.requestUpdate(); }
- function weatherValue(value,unit) { return value==null ? "--" : value.format("%.0f")+unit; }
+ function onExitSleep() { sleeping=false;WatchUi.requestUpdate(); }
  function currentWeather() { try { return Weather.getCurrentConditions(); } catch(error) { return null; } }
- function weatherRow(dc,y,label,value) {
-  dc.setColor(0xaaaaaa,Graphics.COLOR_TRANSPARENT);dc.drawText(28,y,Graphics.FONT_XTINY,label,Graphics.TEXT_JUSTIFY_LEFT);
-  dc.setColor(Graphics.COLOR_WHITE,Graphics.COLOR_TRANSPARENT);dc.drawText(420,y,Graphics.FONT_XTINY,value,Graphics.TEXT_JUSTIFY_RIGHT);
- }
- function weatherLayout() {
-  var h=Graphics.getFontHeight(Graphics.FONT_XTINY);
-  var temperature=16+h+4;
-  var rows=temperature+Graphics.getFontHeight(Graphics.FONT_NUMBER_MILD)+8;
-  var step=h+4;var stamp=rows+4*step+4;var divider=stamp+h+8;
-  var nativeY=divider+5;var back=nativeY+h+3;
-  return { :header=>16,:temperature=>temperature,:rows=>rows,:step=>step,:stamp=>stamp,:divider=>divider,:nativeY=>nativeY,:back=>back };
- }
- function drawNotice(dc) {
-  if(noticeText.length()>0 && !sleeping) {
-   if(noticeUntil==0) { noticeUntil=System.getTimer()+15000; }
-   if(System.getTimer()<noticeUntil) { dc.setColor(Graphics.COLOR_BLACK,Graphics.COLOR_BLACK);dc.fillRectangle(10,205,428,70);dc.setColor(Graphics.COLOR_WHITE,Graphics.COLOR_TRANSPARENT);dc.drawText(224,220,Graphics.FONT_XTINY,noticeText,Graphics.TEXT_JUSTIFY_CENTER); }
-   else { noticeText=""; }
-  }
- }
- function drawWeather(dc) {
-  var layout=weatherLayout();
-  dc.setColor(Graphics.COLOR_WHITE,Graphics.COLOR_BLACK);dc.clear();
-  dc.drawText(28,layout[:header],Graphics.FONT_XTINY,"WETTER",Graphics.TEXT_JUSTIFY_LEFT);
-  dc.setColor(0xaaaaaa,Graphics.COLOR_TRANSPARENT);dc.drawText(420,layout[:header],Graphics.FONT_XTINY,"P8",Graphics.TEXT_JUSTIFY_RIGHT);
-  var current=currentWeather();
-  if(current==null) {
-   dc.setColor(Graphics.COLOR_WHITE,Graphics.COLOR_TRANSPARENT);
-   dc.drawText(224,155,Graphics.FONT_XTINY,"Keine Garmin-Wetterdaten",Graphics.TEXT_JUSTIFY_CENTER);
-   dc.drawText(224,195,Graphics.FONT_XTINY,"Garmin Connect synchronisieren",Graphics.TEXT_JUSTIFY_CENTER);
-  } else {
-   dc.setColor(Graphics.COLOR_WHITE,Graphics.COLOR_TRANSPARENT);
-   dc.drawText(224,layout[:temperature],Graphics.FONT_NUMBER_MILD,weatherValue(current.temperature,"°C"),Graphics.TEXT_JUSTIFY_CENTER);
-   weatherRow(dc,layout[:rows],"Gefuehlt",weatherValue(current.feelsLikeTemperature,"°C"));
-   weatherRow(dc,layout[:rows]+layout[:step],"Min / Max",weatherValue(current.lowTemperature,"°")+" / "+weatherValue(current.highTemperature,"°"));
-   weatherRow(dc,layout[:rows]+2*layout[:step],"Luftfeuchte",weatherValue(current.relativeHumidity,"%"));
-   weatherRow(dc,layout[:rows]+3*layout[:step],"Wind",current.windSpeed==null ? "--" : (current.windSpeed*3.6).format("%.0f")+" km/h");
-   var stamp="Stand unbekannt";
-   if(current.observationTime!=null) {
-    var info=Gregorian.info(current.observationTime,Time.FORMAT_SHORT);
-    stamp="Stand "+info.day.format("%02d")+"."+info.month.format("%02d")+". "+info.hour.format("%02d")+":"+info.min.format("%02d");
-   }
-   dc.setColor(0xaaaaaa,Graphics.COLOR_TRANSPARENT);dc.drawText(224,layout[:stamp],Graphics.FONT_XTINY,stamp,Graphics.TEXT_JUSTIFY_CENTER);
-  }
-  dc.setColor(0x555555,Graphics.COLOR_TRANSPARENT);dc.drawLine(28,layout[:divider],420,layout[:divider]);
-  dc.setColor(Graphics.COLOR_WHITE,Graphics.COLOR_TRANSPARENT);dc.drawText(224,layout[:nativeY],Graphics.FONT_XTINY,"Garmin-Wetter oeffnen: halten",Graphics.TEXT_JUSTIFY_CENTER);
-  dc.setColor(0xaaaaaa,Graphics.COLOR_TRANSPARENT);dc.drawText(224,layout[:back],Graphics.FONT_XTINY,"Oben halten: zurueck",Graphics.TEXT_JUSTIFY_CENTER);
- }
 
  function onUpdate(dc) {
  displayWidth=dc.getWidth();displayHeight=dc.getHeight();
  dc.setColor(Graphics.COLOR_WHITE,BGCOLOR);dc.clear();
  var clock=System.getClockTime();var hh=clock.hour.format("%02d");var mm=clock.min.format("%02d");
  if(sleeping) { dc.setColor(0x666666,Graphics.COLOR_BLACK);dc.drawText(224,220,Graphics.FONT_NUMBER_MEDIUM,hh+":"+mm,Graphics.TEXT_JUSTIFY_CENTER);return; }
- if(weatherPanel) {
-  if(weatherUntil==0) { weatherUntil=System.getTimer()+30000; }
-  if(System.getTimer()<weatherUntil) {
-   try { drawWeather(dc);drawNotice(dc);return; }
-   catch(error) { weatherPanel=false;showNotice("P8: Wetterfehler");System.println("P8 weather: "+error.toString()); }
-  } else { weatherPanel=false; }
- }
  var date=Gregorian.info(Time.now(),Time.FORMAT_SHORT);var alarms=System.getDeviceSettings().alarmCount;
- var temp="--";var weather=Weather.getCurrentConditions();
+ var temp="--";var weather=currentWeather();
  if(weather!=null && weather.temperature!=null) { temp=weather.temperature.format("%.0f")+"°C"; }
  var info=ActivityMonitor.getInfo();var km="--";
  if(info.distance!=null) { var n=info.distance/100000.0;km=n.format(n<100?"%.2f":n<1000?"%.1f":"%.0f"); }
  RENDER
- drawNotice(dc);
  }
 }
 class CustomDelegate extends WatchUi.WatchFaceDelegate {
@@ -262,27 +198,22 @@ class CustomDelegate extends WatchUi.WatchFaceDelegate {
  function initialize(view) { WatchFaceDelegate.initialize();face=view; }
  function onPress(event) {
   var p=event.getCoordinates();var x=p[0]*448.0/face.displayWidth;var y=p[1]*486.0/face.displayHeight;
-  face.touchPoint=x.format("%.0f")+"/"+y.format("%.0f");
-  if(face.weatherPanel) { var layout=face.weatherLayout();if(y>=layout[:nativeY]-4 && y<layout[:back]-2) { return open("nativeWeather"); } face.closeWeather();return true; }
   TOUCH_ZONES
-  face.showNotice("P8: Frei "+face.touchPoint);
-  return true;
+  return false;
  }
+ function complicationType(target) {
+  if(target.equals("weather")) { return Complications.COMPLICATION_TYPE_CURRENT_WEATHER; }
+  if(target.equals("steps")) { return Complications.COMPLICATION_TYPE_STEPS; }
+  if(target.equals("battery")) { return Complications.COMPLICATION_TYPE_BATTERY; }
+  if(target.equals("date")) { return Complications.COMPLICATION_TYPE_DATE; }
+  if(target.equals("heart")) { return Complications.COMPLICATION_TYPE_HEART_RATE; }
+  return null;
+ }
+ function launchComplication(type) { Complications.exitTo(new Complications.Id(type)); }
  function open(target) {
-  if(target.equals("weather")) { face.showWeather();return true; }
-  if(target.equals("alarms")) { face.showNotice("Alarme im Garmin-Uhrenmenue einstellen");return true; }
-  var type=null;
-  if(target.equals("nativeWeather")) { type=Complications.COMPLICATION_TYPE_CURRENT_WEATHER; }
-  else if(target.equals("steps")) { type=Complications.COMPLICATION_TYPE_STEPS; }
-  else if(target.equals("battery")) { type=Complications.COMPLICATION_TYPE_BATTERY; }
-  else if(target.equals("date")) { type=Complications.COMPLICATION_TYPE_DATE; }
-  else if(target.equals("heart")) { type=Complications.COMPLICATION_TYPE_HEART_RATE; }
-  if(type==null) { return false; }
-  try {
-   face.showNotice("P8: Oeffne "+target);
-   Complications.exitTo(new Complications.Id(type));return true;
-  }
-  catch(error) { System.println("P8 touch "+target+": "+error.toString());face.showNotice("P8: Garmin-Ziel nicht verfuegbar");return true; }
+  var type=complicationType(target);if(type==null) { return false; }
+  try { launchComplication(type);return true; }
+  catch(error) { System.println("Garmin-Ziel nicht verfuegbar: "+error.toString());return false; }
  }
 }
 '''.replace('INITIAL','\n'.join(initial+pixel_tables)).replace('BGCOLOR','0x'+d['background'][1:]).replace('RENDER','\n'.join(render)).replace('TOUCH_ZONES','\n'.join(f'if(x>={x1} && x<{x2} && y>={y1} && y<{y2}) {{ return open("{target}"); }}' for x1,y1,x2,y2,target in touch_zones(d)))

@@ -34,13 +34,13 @@ class PixelBuildTest(unittest.TestCase):
             self.assertEqual(im.size,(2,32));self.assertEqual(im.getpixel((0,0)),(232,205,145,255))
     def test_build_has_own_app_identity(self):
         d=self.design();a=identity(d);d['buildId']='ABCDEF13';b=identity(d)
-        self.assertNotEqual(a[2],b[2]);self.assertEqual(a[1],'Elegant P8-ABCDEF12')
+        self.assertNotEqual(a[2],b[2]);self.assertEqual(a[1],'Elegant P9-ABCDEF12')
     def test_packaged_prg_preview_and_receipt_match(self):
         with tempfile.TemporaryDirectory() as t:
             p=Path(t);out=p/'build/editor-elegant';build_editor(self.design(),out,'editor-elegant')
             dist=p/'dist';dist.mkdir();(dist/'editor-elegant-venux1.prg').write_bytes(b'compiled pixels')
             package(p/'build',dist)
-            r=json.loads((dist/'editor-elegant-P8-ABCDEF12-venux1.json').read_text())
+            r=json.loads((dist/'editor-elegant-P9-ABCDEF12-venux1.json').read_text())
             self.assertEqual((dist/r['file']).read_bytes(),b'compiled pixels')
             self.assertTrue((dist/r['preview']).is_file());self.assertEqual(r['dateFormat'],'ddd. DD.MM.')
 
@@ -64,21 +64,19 @@ class PixelBuildTest(unittest.TestCase):
             self.assertIn('Complications.exitTo(new Complications.Id(type))',code)
             self.assertNotIn('if(face.sleeping)',code)
             self.assertNotIn('face.sleeping=false;',code)
-            self.assertIn('P8: Frei ',code)
+            self.assertNotIn('showNotice',code)
+            self.assertNotIn('drawNotice',code)
             self.assertNotIn('Complications.getComplication(',code)
 
 
-    def test_weather_details_open_locally_and_keep_native_launch_separate(self):
+    def test_weather_uses_system_view_without_an_overlay_or_debug_text(self):
         with tempfile.TemporaryDirectory() as t:
             p=Path(t);generate(self.design(),p);code=(p/'source/Custom.mc').read_text()
-            self.assertIn('if(target.equals("weather")) { face.showWeather();return true; }',code)
-            self.assertIn('if(target.equals("nativeWeather")) { type=Complications.COMPLICATION_TYPE_CURRENT_WEATHER; }',code)
-            self.assertIn('drawWeather(dc);drawNotice(dc);return;',code)
+            self.assertIn('if(target.equals("weather")) { return Complications.COMPLICATION_TYPE_CURRENT_WEATHER; }',code)
+            self.assertIn('launchComplication(type);return true;',code)
             self.assertIn('function onEnterSleep() { sleeping=true; }',code)
-            self.assertIn('face.closeWeather();return true;',code)
-            self.assertIn('Keine Garmin-Wetterdaten',code)
-            self.assertIn('current.observationTime',code)
-            self.assertIn('current.windSpeed*3.6',code)
+            for unwanted in ['weatherPanel','drawWeather','showNotice','P9','Oeffne','Frei','Alarme im Garmin-Uhrenmenue']:
+                self.assertNotIn(unwanted,code)
 
     def test_portugal_weather_symbol_value_and_label_route_to_weather(self):
         d=json.loads((Path(__file__).resolve().parents[1]/'designs/editor-portugal-kopie.json').read_text(encoding='utf-8'))

@@ -23,8 +23,9 @@ python tools/test_editor_touch.py --sdk PFAD_ZUM_SDK --key PFAD_ZUM_ENTWICKLERSC
 ```
 
 Der Test kompiliert das Portugal-Editorprojekt und führt echte Monkey-C-Tests aus:
-Wetter-Symbol, Temperatur und Beschriftung, Uhrzeit ohne Verknüpfung, Alarmhinweis
-und Wetteransicht nach dem Ruhemodus. Die Testdoubles werden ohne Typprüfung
+Wetter-Symbol, Temperatur und Beschriftung öffnen die Garmin-Wetteransicht.
+Schritte, Akku und Datum öffnen ihre Systemansichten; Uhrzeit und Alarme zeigen
+keine Diagnosemeldungen. Die Testdoubles werden ohne Typprüfung
 kompiliert; der normale PRG-Bau bleibt unverändert.
 
 Monkey-C-Textwerte müssen mit `equals()` verglichen werden. Ein `==` kann auch
