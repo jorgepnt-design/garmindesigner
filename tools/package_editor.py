@@ -3,6 +3,7 @@ import hashlib
 import json
 import shutil
 import sys
+from editor_build import RENDERER_VERSION
 from pathlib import Path
 
 
@@ -12,10 +13,10 @@ def package(build_root, dist):
         if not metadata.is_file():
             continue
         receipt = json.loads(metadata.read_text())
-        if receipt.get('renderer') != 'P2':
+        if receipt.get('renderer') != RENDERER_VERSION:
             continue
         slug = receipt['slug']
-        stem = f"{slug}-P2-{receipt['buildId']}-venux1"
+        stem = f"{slug}-{RENDERER_VERSION}-{receipt['buildId']}-venux1"
         source = Path(dist) / f'{slug}-venux1.prg'
         if not source.is_file() or not source.stat().st_size:
             raise ValueError(f'Missing compiled PRG: {source}')

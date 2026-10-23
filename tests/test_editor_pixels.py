@@ -7,7 +7,7 @@ import unittest
 from pathlib import Path
 from PIL import Image
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]/'tools'))
-from editor_build import generate,identity
+from editor_build import generate,identity,touch_zones
 from editor_adapter import build_editor
 from package_editor import package
 
@@ -34,14 +34,33 @@ class PixelBuildTest(unittest.TestCase):
             self.assertEqual(im.size,(2,32));self.assertEqual(im.getpixel((0,0)),(232,205,145,255))
     def test_build_has_own_app_identity(self):
         d=self.design();a=identity(d);d['buildId']='ABCDEF13';b=identity(d)
-        self.assertNotEqual(a[2],b[2]);self.assertEqual(a[1],'Elegant P2-ABCDEF12')
+        self.assertNotEqual(a[2],b[2]);self.assertEqual(a[1],'Elegant P3-ABCDEF12')
     def test_packaged_prg_preview_and_receipt_match(self):
         with tempfile.TemporaryDirectory() as t:
             p=Path(t);out=p/'build/editor-elegant';build_editor(self.design(),out,'editor-elegant')
             dist=p/'dist';dist.mkdir();(dist/'editor-elegant-venux1.prg').write_bytes(b'compiled pixels')
             package(p/'build',dist)
-            r=json.loads((dist/'editor-elegant-P2-ABCDEF12-venux1.json').read_text())
+            r=json.loads((dist/'editor-elegant-P3-ABCDEF12-venux1.json').read_text())
             self.assertEqual((dist/r['file']).read_bytes(),b'compiled pixels')
             self.assertTrue((dist/r['preview']).is_file());self.assertEqual(r['dateFormat'],'ddd. DD.MM.')
+
+    def test_image_asset_is_embedded_with_alpha_and_exact_position(self):
+        d=self.design();im=Image.new('RGBA',(12,10),(255,0,0,200));buf=io.BytesIO();im.save(buf,format='PNG')
+        data='data:image/png;base64,'+base64.b64encode(buf.getvalue()).decode()
+        d['elements']=[dict(type='image',font='sans',size=30,x=44,y=55,width=12,height=10,data=data,color='#ffffff')]
+        d['renderAssets']={'0':dict(kind='bitmap',x=44,y=55,width=12,height=10,data=data)}
+        with tempfile.TemporaryDirectory() as t:
+            p=Path(t);generate(d,p)
+            saved=Image.open(p/'resources/Exact0.png');self.assertEqual(saved.getpixel((0,0)),(255,0,0,200));self.assertEqual(saved.size,(12,10))
+            self.assertIn('dc.drawBitmap(44,55,images[0])',(p/'source/Custom.mc').read_text())
+    def test_long_press_tracks_moved_data_fields(self):
+        d=self.design();d['elements'][0]['type']='temperature';d['elements'][0]['x']=40;d['elements'][0]['y']=100
+        first=touch_zones(d)[0];self.assertEqual(first[-1],'weather')
+        d['elements'][0]['y']=300;second=touch_zones(d)[0];self.assertEqual(second[1]-first[1],200)
+        with tempfile.TemporaryDirectory() as t:
+            # Generate a supported minutes field to verify the actual delegate wiring.
+            p=Path(t);generate(self.design(),p);code=(p/'source/Custom.mc').read_text()
+            self.assertIn('new CustomDelegate(face)',code);self.assertIn('function onPress(event)',code)
+            self.assertIn('Complications.exitTo(new Complications.Id(type))',code)
 
 if __name__=='__main__':unittest.main()
